@@ -1,0 +1,92 @@
+/* Style for the login container */
+.form-container1 {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f3f4f6; /* You can adjust the background color as needed */
+  }
+  
+  /* Style for the form container */
+  .form-container2 {
+    width: 100%;
+    max-width: 24rem; /* Adjust the max-width as needed */
+    padding: 1.5rem;
+    background-color: #ffffff; /* You can adjust the background color as needed */
+    border-radius: 20px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* You can adjust the box shadow as needed */
+    margin: 15px;
+  }
+  
+  /* Style for the logo */
+  .logo {
+    height: 3rem; /* Adjust the height of the logo as needed */
+    margin-bottom: 1rem;
+  }
+  
+  /* Style for the form elements */
+  .form-input {
+    width: 100%;
+    padding: 0.625rem;
+    margin-bottom: 1rem;
+    border: 1px solid #D7C72C; /* You can adjust the border color as needed */
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  
+  .form-input:focus {
+    outline: none;
+    border-color: #12BBB4; /* You can adjust the focus border color as needed */
+  }
+  
+  /* Style for the error message */
+  .error-message {
+    color: #e53e3e; /* You can adjust the error message color as needed */
+    margin-bottom: 1rem;
+  }
+  
+  /* Style for the login button */
+  .submit-button {
+    background-image: linear-gradient(to right, #000, #000); /* Dark grey (#444) to black (#000) */
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-image 0.3s ease;
+    margin-top: 15px;
+    width: 100%;
+  
+  }
+  
+  .submit-button:hover {
+    background:#12BBB4; /* Dark grey (#444) to black (#000) */
+    color: #fff;
+
+  }
+  
+  /* Style for the register link */
+  .navigate-link {
+    font-size: 0.875rem;
+    color: #12BBB4; /* You can adjust the link color as needed */
+  }
+  
+  .navigate-link:hover {
+    text-decoration: underline;
+  }
+  
+  .label {
+    display: block;
+    margin-bottom: 0.5rem; 
+    font-size: 0.875rem; 
+    font-weight: 600; 
+    color: #000; 
+  }
+  .register-text {
+    font-size: 0.875rem; /* Adjust the font size as needed */
+    font-weight: 500; /* Adjust the font weight as needed */
+    color: #000; /* Adjust the text color as needed */
+  }
+  

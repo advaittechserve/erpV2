@@ -1,0 +1,27 @@
+/* Navbar */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000; /* Ensure it's above other content */
+  }
+  
+  /* Sidebar */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 50px; /* Adjust as needed */
+    z-index: 1000; /* Ensure it's above other content */
+  }
+  
+  /* Content */
+  .content {
+    margin-top: 60px;
+    background-color: #f0f4f8; /* Slate-50 background color */
+    min-height: calc(100vh - 20px); /* Adjust to ensure content takes up remaining height */
+    padding: 20px; /* Adjust as needed */
+  }
+  

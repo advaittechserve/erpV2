@@ -1,0 +1,18 @@
+/* Navbar */
+/* CSS styles */
+.profile-image {
+     display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border: 3px solid #D7C72C; /* Black border */
+    border-radius: 50%; /* Rounded border */
+    background-color: black; /* Dynamic background color */
+    color: white; /* Text color */
+    font-size: 48px; /* Font size */
+  }
+  
+  .initials {
+    text-transform: uppercase;
+    font-size:medium;
+  }
+  

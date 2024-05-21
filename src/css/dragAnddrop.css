@@ -1,0 +1,98 @@
+/* styles.css */
+
+/* Container styles */
+
+@media (max-width: 2305px) and (min-width:1605px) {
+ 
+  .file-upload-box {
+    width: 109%;
+    margin-left:170px;
+  }
+}
+@media (max-width: 1605px) and (min-width:1280px) {
+
+  .file-upload-box {
+    width: 87%;
+    margin-left:170px;
+  }
+}
+
+@media (max-width: 1280px) and (min-width:768px) {
+  .file-upload-box {
+    width: 100%;
+    display: block;
+  }
+}
+
+@media (max-width: 768px) and (min-width:480px) {
+  .file-upload-box {
+    width: 100%;
+    display: block;
+  }
+}
+
+@media (max-width: 480px) and (min-width:320px) {
+  .file-upload-box {
+    width: 100%;
+    display: block;
+  }
+}
+
+@media (max-width: 320px){
+  .file-upload-box {
+    width: 100%;
+    display: block;
+  }
+}
+
+
+/* File upload box styles */
+.file-upload-box {
+  background-color: #fff;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+
+}
+
+/* Drag and drop area styles */
+.drag-drop-area {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: center;
+ 
+}
+
+.drag-drop-area:hover {
+  background-color: #f0f0f0;
+}
+
+/* Button styles */
+.upload-btn {
+  background: #000; /* Dark grey (#444) to black (#000) */
+  color: #fff;
+  border: none;
+  border-radius: 30px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-image 0.3s ease;
+  margin-top: 15px;
+}
+
+.upload-btn:hover {
+  background: #12BBB4; /* Dark grey (#444) to black (#000) */
+  color: #fff;
+
+}
+
+
+
+
+.upload-icon{
+  display: flex;
+  justify-content: center;
+  align-items: top;
+}

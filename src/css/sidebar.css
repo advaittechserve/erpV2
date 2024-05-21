@@ -1,0 +1,8 @@
+.sidebar-list{
+    padding: 8px;
+    width: 145px;
+}
+
+.sidebar-list:hover{
+    background-color: #D7C72C;
+}

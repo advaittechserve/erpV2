@@ -1,0 +1,34 @@
+/* toastStyles.css */
+
+.Toastify__toast-container {
+  z-index: 9999;
+}
+
+.Toastify__toast--success {
+  background-color: white;
+  color: #12BBB4;
+}
+
+.Toastify__toast--success .Toastify__progress-bar {
+  background-color: #12BBB4 !important; /* Ensure this is applied */
+}
+.Toastify__toast--success svg {
+  fill: #12BBB4 !important; /* Change the SVG fill color */
+}
+
+.Toastify__toast--error {
+  background-color: white;
+  color: #E02424;
+}
+
+.Toastify__toast--error .Toastify__progress-bar {
+  background-color: #E02424 !important; /* Ensure this is applied */
+}
+.Toastify__toast--error svg {
+  fill: #E02424 !important; /* Change the SVG fill color */
+}
+
+.Toastify__toast-body {
+  padding: 10px 22px;
+  border-radius: 20px;
+}
