@@ -19,7 +19,7 @@ const BankDetailsTable = () => {
         const fetchData = async () => {
             try {
                 const [ bankResponse] = await Promise.all([
-                    axios.get('http://localhost:5000/bank')                  
+                    axios.get('http://localhost:5000/bank_atmdetyails')                  
                 ]);
                 const banks = bankResponse.data;
                 const mergedData = banks.map(bank => {

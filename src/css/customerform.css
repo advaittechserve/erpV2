@@ -83,7 +83,7 @@
   font-size: 0.875rem;
 }
 .dropdown::placeholder {
-  color: black; /* Change the placeholder text color */
+  color: #000; /* Change the placeholder text color */
 }
 
 
@@ -170,22 +170,32 @@
   background: #E02424;
   color: #fff;
 }
-.ul-customersuggestion {
+.ul-suggestion {
   list-style-type: none;
   padding: 0;
   margin: 0;
+  z-index: 10000;
+  max-height: 100px; /* Optional: Add a max-height to make the list scrollable */
+  overflow-y: auto; /* Optional: Add overflow for scrolling */
+
 }
 
-.li-customersuggestion {
+.li-suggestion {
   padding: 10px;
   background-color: #f0f0f0;
   border-bottom: 1px solid #ccc;
   cursor: pointer;
+  
 }
 
-.li-customersuggestion:hover {
+.li-suggestion:hover {
   background-color: #e0e0e0;
 }
+
+.suggestion-container {
+  position: relative;
+}
+
 .checkbox-list {
   list-style-type: none;
   width: 100%;

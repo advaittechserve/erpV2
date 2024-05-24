@@ -4,11 +4,11 @@ const mysql = require('mysql');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
 const app = express();
 const port = 5000;
 process.env.TZ = 'Asia/Kolkata'; // Set the server timezone to IST
 const countryStateCity = require("country-state-city");
-
 
 const currentDate = new Date();
 currentDate.toLocaleString('en-IN', {
@@ -23,7 +23,6 @@ currentDate.toLocaleString('en-IN', {
 app.use(cors());
 app.use(express.json());
 
-
 const connection = mysql.createConnection({
   host: 'localhost',
   user: 'root',
@@ -33,6 +32,45 @@ const connection = mysql.createConnection({
 
 connection.connect();
 
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // Specify the destination directory for uploaded files
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`); // Specify the file name format
+  }
+});
+
+const upload = multer({ storage: storage });
+
+const fs = require('fs');
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
+
+// File upload route
+app.post('/api/uploadFile', upload.single('file'), (req, res) => {
+  try {
+    const atmId = req.body.atmId;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).send('No file uploaded.');
+    }
+
+    const query = 'UPDATE atm SET RequestFile = ? WHERE AtmId = ?';
+    connection.query(query, [file.path, atmId], (err, results) => {
+      if (err) {
+        console.error('Error updating ATM file path:', err);
+        return res.status(500).send('Error updating ATM file path.');
+      }
+      res.status(200).send('File uploaded and data updated.');
+    });
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).send('Error uploading file.');
+  }
+});
 app.post('/api/uploadfiledata', (req, res) => {
   const { name, uploadedBy, status, uploadedTime } = req.body;
   const insertQuery = `INSERT INTO uploadfiledata (name, uploadedBy, status, uploadedTime) VALUES (?, ?, ?, ?)`;
@@ -56,7 +94,7 @@ app.post('/api/insertData', async (req, res) => {
       const customerExists = await checkIfExists(connection, customercheckQuery, data.map((row) => [row.CustomerId]));
 
       if (!customerExists) {
-        const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName) VALUES ?';
+        const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName , CustomerSiteStatus , StartDate , EndDate) VALUES ?';
         await insertWithForeignKeyCheck(connection, customerQuery, customerData).catch(error => {
           console.error('Error inserting customer data:', error);
           throw error;
@@ -118,39 +156,57 @@ app.post('/api/insertData', async (req, res) => {
   }
 });
 app.post('/api/insertCustomerData', async (req, res) => {
-
-  const data = Array.isArray(req.body) ? req.body : [req.body];
-  const customerData = data.map((row) => [row.CustomerId, row.CustomerName]);
-
   try {
-    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName) VALUES ?';
-    await insertWithForeignKeyCheck(connection, customerQuery, customerData).catch(error => {
-      console.error('Error inserting customer data:', error);
-      throw error;
+    const data = Array.isArray(req.body) ? req.body : [req.body];
+    const customerData = data.map((row) => [row.CustomerId, row.CustomerName, row.CustomerSiteStatus, row.StartDate, row.EndDate]);
 
-    });
+    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus, StartDate, EndDate) VALUES ?';
+    await insertWithForeignKeyCheck(connection, customerQuery, customerData);
+    console.log('Customer data inserted successfully');
+    res.status(200).send('Customer data inserted successfully');
   } catch (error) {
-    console.log('Data:', data);
-    res.status(500).send('Error inserting data');
+    console.error('Error inserting customer data:', error);
+    res.status(500).send('Error inserting customer data');
   }
-
 });
 app.post('/api/insertBankData', async (req, res) => {
-
   const data = Array.isArray(req.body) ? req.body : [req.body];
-  const bankData = data.map((row) => [row.BankId, row.BankName, row.AtmCount, row.Field, row.CustomerId]);
+  const bankData = data.map((row) => [row.BankId, row.BankName]);
+  const bankCustomerData = data.map((row) => [row.BankId, row.CustomerId]);
 
-  try {
-    const bankQuery = 'INSERT INTO bank (BankId, BankName, AtmCount, Field, CustomerId) VALUES ?';
-    await insertWithForeignKeyCheck(connection, bankQuery, bankData).catch(error => {
-      console.error('Error inserting bank data:', error);
-      throw error;
-    });
-  } catch (error) {
-    console.log('Data:', data);
-    res.status(500).send('Error inserting data');
-  }
+  connection.beginTransaction(async (err) => {
+    if (err) {
+      console.error('Error starting transaction:', err);
+      return res.status(500).send('Error starting transaction');
+    }
 
+    try {
+      const bankQuery = 'INSERT INTO bank (BankId, BankName) VALUES ?';
+      const bankCustomerQuery = 'INSERT INTO bankid_customerid (BankId, CustomerId) VALUES ?';
+
+      // Insert data into the bank table
+      await insertWithForeignKeyCheck(connection, bankQuery, bankData);
+
+      // Insert data into the bankid_customerid table
+      await insertWithForeignKeyCheck(connection, bankCustomerQuery, bankCustomerData);
+
+      connection.commit((err) => {
+        if (err) {
+          connection.rollback(() => {
+            console.error('Error committing transaction:', err);
+            return res.status(500).send('Error committing transaction');
+          });
+        } else {
+          res.status(200).send('Data inserted successfully');
+        }
+      });
+    } catch (error) {
+      connection.rollback(() => {
+        console.error('Transaction error:', error);
+        res.status(500).send('Error inserting data');
+      });
+    }
+  });
 });
 app.post('/api/insertAtmData', (req, res) => {
   const { atmDetails } = req.body;
@@ -160,7 +216,7 @@ app.post('/api/insertAtmData', (req, res) => {
   }
 
   // Prepare the SQL INSERT statement
-  const sql = 'INSERT INTO atm (AtmId,Country, State, City, Address, BranchCode, SiteId, Lho,NewAtmId, SiteStatus, BankId, CustomerId) VALUES ?';
+  const sql = 'INSERT INTO atm (AtmId,Country, State, City, Address, BranchCode, SiteId, Lho,NewAtmId, SiteStatus,SiteType,FromDate,ToDate,RequestedBy,requestFile, BankId, CustomerId) VALUES ?';
 
   // Extract values from ATM details to be inserted
   const values = atmDetails.map((atm) => [
@@ -174,6 +230,11 @@ app.post('/api/insertAtmData', (req, res) => {
     atm.Lho,
     atm.AtmId,
     atm.SiteStatus,
+    atm.SiteType,
+    atm.FromDate,
+    atm.ToDate,
+    atm.RequestedBy,
+    atm.RequestedFile,
     atm.BankId,
     atm.CustomerId
   ]);
@@ -443,8 +504,8 @@ function verifyToken(req, res, next) {
 app.get('/api/getfiledata', (req, res) => {
   connection.query(`SELECT * FROM uploadfiledata`, (error, results) => {
     if (error) {
-      console.error('Error fetching customers:', error);
-      res.status(500).json({ error: 'An error occurred while fetching customers' });
+      console.error('Error fetching file data:', error);
+      res.status(500).json({ error: 'An error occurred while fetching file data' });
     } else {
       res.json(results);
     }
@@ -453,7 +514,7 @@ app.get('/api/getfiledata', (req, res) => {
 app.get('/customer', (req, res) => {
   const { name } = req.query;
   if (name) {
-    connection.query(`SELECT CustomerName,CustomerId FROM customer WHERE CustomerName LIKE '%${name}%'`, (error, results) => {
+    connection.query(`SELECT * FROM customer WHERE CustomerName LIKE '%${name}%'`, (error, results) => {
       if (error) {
         console.error('Error fetching customers:', error);
         res.status(500).json({ error: 'An error occurred while fetching customers' });
@@ -463,7 +524,7 @@ app.get('/customer', (req, res) => {
     });
   }
   else {
-    connection.query('SELECT CustomerId, CustomerName FROM customer', (error, results) => {
+    connection.query('SELECT * FROM customer', (error, results) => {
       if (error) {
         console.error('Error fetching customers:', error);
         res.status(500).json({ error: 'An error occurred while fetching customers' });
@@ -476,10 +537,10 @@ app.get('/customer', (req, res) => {
 app.get('/bank', (req, res) => {
   const { name } = req.query;
   if (name) {
-    connection.query(`SELECT BankId, BankName,AtmCount,Field, CustomerId FROM bank WHERE BankName LIKE '%${name}%'`, (error, results) => {
+    connection.query(`SELECT * FROM bank WHERE BankName LIKE '%${name}%'`, (error, results) => {
       if (error) {
-        console.error('Error fetching customers:', error);
-        res.status(500).json({ error: 'An error occurred while fetching customers' });
+        console.error('Error fetching banks:', error);
+        res.status(500).json({ error: 'An error occurred while fetching banks' });
       } else {
         res.json(results);
       }
@@ -495,21 +556,21 @@ app.get('/bank', (req, res) => {
 app.get('/atm', (req, res) => {
   const { Id } = req.query;
   if (Id) {
-    connection.query(`SELECT AtmId, BankId, State, City, Address, BranchCode, SiteId, Lho, Region, OldAtmId, NewAtmId, SiteStatus FROM atm WHERE CustomerId ='${Id}'`, (error, results) => {
+    connection.query(`SELECT * FROM atm WHERE CustomerId ='${Id}'`, (error, results) => {
       if (error) {
-        console.error('Error fetching customers:', error);
-        res.status(500).json({ error: 'An error occurred while fetching customers' });
+        console.error('Error fetching atms:', error);
+        res.status(500).json({ error: 'An error occurred while fetching atms' });
       } else {
         res.json(results);
       }
     });
   }
   else {
-  connection.query('SELECT * FROM atm', (error, results) => {
-    if (error) throw error;
-    res.json(results);
-  });
-}
+    connection.query('SELECT * FROM atm', (error, results) => {
+      if (error) throw error;
+      res.json(results);
+    });
+  }
 });
 app.get('/atmregion', (req, res) => {
   connection.query('SELECT AtmId,RegionId, RegionName, GstStateCode FROM atmregion', (error, results) => {
@@ -518,13 +579,13 @@ app.get('/atmregion', (req, res) => {
   });
 });
 app.get('/services', (req, res) => {
-  connection.query('SELECT Id,AtmId, ServiceId, ServiceType, TakeoverDate, HandoverDate, CostToClient FROM services', (error, results) => {
+  connection.query('SELECT * FROM services', (error, results) => {
     if (error) throw error;
     res.json(results);
   });
 });
 app.get('/employee', (req, res) => {
-  connection.query('SELECT AtmId,EmployeeId,EmployeeContactNumber, EmployeeName,EmployeeRole,TypeOfWork FROM employee', (error, results) => {
+  connection.query('SELECT * FROM employee', (error, results) => {
     if (error) throw error;
     res.json(results);
   });
@@ -541,6 +602,26 @@ app.get('/atm_employeedetails', (req, res) => {
   connection.query(query, (error, results) => {
     if (error) {
       console.error('Error fetching ATM employee details:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    } else {
+      // Send the query results as JSON response
+      res.json(results);
+    }
+  });
+});
+app.get('/bank_atmdetails', (req, res) => {
+  // Query to fetch ATM employee details
+  const query = `
+  SELECT bc.*, b.BankName, b.AtmCount
+FROM bankid_customerid bc
+JOIN bank b ON bc.BankId = b.BankId;
+
+  `;
+
+  // Use the connection pool to execute the query
+  connection.query(query, (error, results) => {
+    if (error) {
+      console.error('Error fetching ATM bank details:', error);
       res.status(500).json({ error: 'Internal server error' });
     } else {
       // Send the query results as JSON response
@@ -568,7 +649,7 @@ app.get('/atm_servicesdetails', (req, res) => {
   });
 });
 app.get('/admindetails', (req, res) => {
-  connection.query('SELECT id,name,username,password, phonenumber,access,session_intime,session_outtime FROM admin', (error, results) => {
+  connection.query('SELECT * FROM admin', (error, results) => {
     if (error) throw error;
     res.json(results);
   });
@@ -577,7 +658,7 @@ app.get('/userdetails/:userId', (req, res) => {
   const userId = req.params.userId;
 
   // Query to fetch user details for the specified userId
-  const query = 'SELECT id, name, username, password, phonenumber, access, session_intime, session_outtime FROM admin WHERE id = ?';
+  const query = 'SELECT *FROM admin WHERE id = ?';
 
   // Execute the query with the userId as a parameter
   connection.query(query, [userId], (error, results) => {

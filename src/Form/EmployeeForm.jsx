@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import '../css/customerform.css';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import '../css/customerform.css';
+import StatusModal from '../Components/StatusModal';
 
 const EmployeeForm = () => {
     const [employeeId, setEmployeeId] = useState('');
@@ -12,6 +13,11 @@ const EmployeeForm = () => {
     const [selectedCustomer, setSelectedCustomer] = useState('NA');
     const [atmIds, setAtmIds] = useState([]);
     const [selectedAtmId, setSelectedAtmId] = useState('NA');
+    const [showModal, setShowModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 
     useEffect(() => {
         fetchCustomers();
@@ -44,7 +50,6 @@ const EmployeeForm = () => {
             }
             const data = await response.json();
             setAtmIds(data);
-            console.log(data);
             setSelectedAtmId('NA');
         } catch (error) {
             console.error('Error fetching ATM IDs:', error);
@@ -55,26 +60,37 @@ const EmployeeForm = () => {
         event.preventDefault();
         const formData = {
             employeeDetails: [{
-            EmployeeId:employeeId,
-            EmployeeName:employeeName,
-            EmployeeContactNumber:employeeContactNumber,
-            TypeOfWork:typeOfWork,
-            EmployeeRole:typeOfEmployee,
-            CustomerId: selectedCustomer,
-            AtmId:selectedAtmId 
+                EmployeeId: employeeId,
+                EmployeeName: employeeName,
+                EmployeeContactNumber: employeeContactNumber,
+                TypeOfWork: typeOfWork,
+                EmployeeRole: typeOfEmployee,
+                CustomerId: selectedCustomer,
+                AtmId: selectedAtmId 
             }]
         };
+        setShowModal(true);
+        setIsUploading(true);
+        setModalMessage('Uploading employee details...');
+        await delay(2000); 
 
-        console.log('Form Data:', selectedAtmId);
-        const insertResponseEmployee = await axios.post('http://localhost:5000/api/insertEmployeeData', formData);
-        
-        if (insertResponseEmployee.status === 200) {
-          console.log('Employee details submitted successfully');
-        } else {
-          console.log('Error inserting Employee details');
+        try {
+            const insertResponseEmployee = await axios.post('http://localhost:5000/api/insertEmployeeData', formData);
+            if (insertResponseEmployee.status === 200) {
+                setModalMessage('Employee details submitted successfully');
+            } else {
+                setModalMessage('Error inserting Employee details');
+            }
+        } catch (error) {
+            setModalMessage('Error inserting Employee details');
+            console.error('Error submitting form:', error);
+        } finally {
+            setIsUploading(false);
         }
-     
+    };
 
+    const handleCloseModal = () => {
+        setShowModal(false);
     };
 
     return (
@@ -82,7 +98,6 @@ const EmployeeForm = () => {
             <form className="customer-details" onSubmit={handleSubmit}>
                 <p className="customer-details-heading">Employee Details</p>
                 <div className="grid gap-4 mb-6 md:grid-cols-2 mt-4">
-
                     <input
                         type="text"
                         value={employeeId}
@@ -91,8 +106,6 @@ const EmployeeForm = () => {
                         placeholder="Employee Id"
                         required
                     />
-
-
                     <input
                         type="text"
                         value={employeeName}
@@ -101,10 +114,8 @@ const EmployeeForm = () => {
                         placeholder="Employee Name"
                         required
                     />
-
                 </div>
                 <div className="grid gap-4 mb-6 md:grid-cols-2 mt-4">
-
                     <input
                         type="number"
                         value={employeeContactNumber}
@@ -113,7 +124,6 @@ const EmployeeForm = () => {
                         placeholder="Employee Contact Number"
                         required
                     />
-
                     <select
                         value={typeOfWork}
                         onChange={(e) => setTypeOfWork(e.target.value)}
@@ -211,6 +221,13 @@ const EmployeeForm = () => {
 
                 <button type="submit" className="submit-btn">Submit</button>
             </form>
+
+            <StatusModal
+                show={showModal}
+                handleClose={handleCloseModal}
+                message={modalMessage}
+                isUploading={isUploading}
+            />
         </div>
     );
 };

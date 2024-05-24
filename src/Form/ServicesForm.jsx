@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import '../css/customerform.css';
 import axios from 'axios';
 import Select from 'react-select';
+import StatusModal from '../Components/StatusModal';
 
 const ServicesForm = () => {
     const [serviceId, setServiceId] = useState('');
@@ -19,6 +20,10 @@ const ServicesForm = () => {
     const [costToClient, setcostToClient] = useState('');
     const [selectedAtmIds, setSelectedAtmIds] = useState([]);
     const [isChecked, setIsChecked] = useState(false);
+    const [showModal, setShowModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 
     // Mapping of service types to service IDs
@@ -137,27 +142,39 @@ const ServicesForm = () => {
         const isValid = validateDates();
 
         if (isValid) {
-            for (const atmId of selectedAtmIds) {
-                const formData = {
-                    servicesDetails: [{
-                        ServiceId: serviceId,
-                        ServiceType: serviceType,
-                        TakeoverDate: startDate,
-                        HandoverDate: endDate,
-                        CostToClient: costToClient,
-                        AtmId: atmId
-                    }]
-                };
+            setShowModal(true);
+            setIsUploading(true);
 
-                console.log('Form Data:', selectedAtmIds);
-                const insertResponseService = await axios.post('http://localhost:5000/api/insertServicesData', formData);
-            }
-            if (insertResponseService.status === 200) {
-                console.log('Employee details submitted successfully');
-            } else {
-                console.log('Error inserting Employee details');
+            try {
+                for (const atmId of selectedAtmIds) {
+                    const formData = {
+                        servicesDetails: [{
+                            ServiceId: serviceId,
+                            ServiceType: serviceType,
+                            TakeoverDate: startDate,
+                            HandoverDate: endDate,
+                            CostToClient: costToClient,
+                            AtmId: atmId
+                        }]
+                    };
+                    setModalMessage(`Uploading services details for ${atmId}...`);
+                    await delay(1000);
+                    await axios.post('http://localhost:5000/api/insertServicesData', formData);
+
+                }
+
+                setModalMessage('Services details submitted successfully');
+            } catch (error) {
+                setModalMessage('Error inserting Services details');
+                console.error('Error submitting form:', error);
+            } finally {
+                setIsUploading(false);
             }
         }
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
     };
 
     return (
@@ -282,6 +299,12 @@ const ServicesForm = () => {
 
                 <button type="submit" className="submit-btn">Submit</button>
             </form>
+            <StatusModal
+                show={showModal}
+                handleClose={handleCloseModal}
+                message={modalMessage}
+                isUploading={isUploading}
+            />
         </div>
     );
 };
