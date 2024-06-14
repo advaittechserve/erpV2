@@ -96,3 +96,593 @@
   justify-content: center;
   align-items: top;
 }
+/* Custom styles for the importer */
+.CSVImporter_TextButton {
+  display: block;
+  margin: 0;
+  border: 1px solid gray;
+  padding: 0.4em 1em 0.5em;
+  border-radius: 0.4em;
+  background: slategray;
+  font-size: inherit;
+  color: #fff;
+  cursor: pointer;
+}
+
+.CSVImporter_TextButton:hover:not(:disabled) {
+  background: seagreen;
+}
+
+.CSVImporter_TextButton:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.CSVImporter_IconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  width: 3em;
+  height: 3em;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 12px;
+  color: #000;
+  cursor: pointer;
+}
+
+.CSVImporter_IconButton:hover:not(:disabled) {
+  background: rgba(128, 128, 128, 0.25);
+}
+
+.CSVImporter_IconButton:disabled {
+  cursor: default;
+}
+
+.CSVImporter_IconButton[data-small="true"] {
+  width: 2em;
+  height: 2em;
+}
+
+.CSVImporter_IconButton[data-focus-only="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.CSVImporter_IconButton[data-focus-only="true"]:focus {
+  opacity: 1;
+}
+
+.CSVImporter_IconButton > span {
+  display: block;
+  width: 1.75em;
+  height: 1.75em;
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.CSVImporter_IconButton > span[data-type="back"] {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZvY3VzYWJsZT0iZmFsc2UiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTE1LjQxIDcuNDFMMTQgNmwtNiA2IDYgNiAxLjQxLTEuNDFMMTAuODMgMTJ6Ij48L3BhdGg+PC9zdmc+");
+}
+
+.CSVImporter_IconButton > span[data-type="forward"] {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZvY3VzYWJsZT0iZmFsc2UiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEwIDZMOC41OSA3LjQxIDEzLjE3IDEybC00LjU4IDQuNTlMMTAgMThsNi02eiI+PC9wYXRoPjwvc3ZnPg==");
+}
+
+.CSVImporter_IconButton > span[data-type="replay"] {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZvY3VzYWJsZT0iZmFsc2UiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDVWMUw3IDZsNSA1VjdjMy4zMSAwIDYgMi42OSA2IDZzLTIuNjkgNi02IDYtNi0yLjY5LTYtNkg0YzAgNC40MiAzLjU4IDggOCA4czgtMy41OCA4LTgtMy41OC04LTgtOHoiPjwvcGF0aD48L3N2Zz4=");
+}
+
+.CSVImporter_IconButton > span[data-type="arrowBack"] {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZvY3VzYWJsZT0iZmFsc2UiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTIwIDExSDcuODNsNS41OS01LjU5TDEyIDRsLTggOCA4IDggMS40MS0xLjQxTDcuODMgMTNIMjB2LTJ6Ij48L3BhdGg+PC9zdmc+");
+}
+
+.CSVImporter_IconButton > span[data-type="close"] {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZvY3VzYWJsZT0iZmFsc2UiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTE5IDYuNDFMMTcuNTkgNSAxMiAxMC41OSA2LjQxIDUgNSA2LjQxIDEwLjU5IDEyIDUgMTcuNTkgNi40MSAxOSAxMiAxMy40MSAxNy41OSAxOSAxOSAxNy41OSAxMy40MSAxMnoiPjwvcGF0aD48L3N2Zz4=");
+}
+
+.CSVImporter_IconButton:disabled > span {
+  opacity: 0.25;
+}
+
+.CSVImporter_IconButton[data-small="true"] > span {
+  font-size: 0.75em;
+}
+
+.CSVImporter_ImporterFrame {
+  border: 1px solid #d1d1d1;
+  padding: 1.2em;
+  border-radius: 0.4em;
+  background: #fff;
+}
+
+.CSVImporter_ImporterFrame__header {
+  display: flex;
+  align-items: center;
+  margin-top: -1em;
+  margin-bottom: 0.2em;
+  margin-left: -1em;
+}
+
+.CSVImporter_ImporterFrame__headerTitle {
+  padding-bottom: 0.1em;
+  overflow: hidden;
+  font-size: 1em;
+  color: #202020;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.CSVImporter_ImporterFrame__headerCrumbSeparator {
+  flex: none;
+  display: flex;
+  margin-right: 0.5em;
+  margin-left: 0.5em;
+  font-size: 1em;
+  opacity: 0.5;
+}
+
+.CSVImporter_ImporterFrame__headerCrumbSeparator > span {
+  display: block;
+  width: 1em;
+  height: 1em;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZvY3VzYWJsZT0iZmFsc2UiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEwIDZMOC41OSA3LjQxIDEzLjE3IDEybC00LjU4IDQuNTlMMTAgMThsNi02eiI+PC9wYXRoPjwvc3ZnPg==");
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.CSVImporter_ImporterFrame__headerSubtitle {
+  flex: none;
+  padding-bottom: 0.1em;
+  font-size: 0.98em;
+  color: #202020;
+}
+
+.CSVImporter_ImporterFrame__footer {
+  display: flex;
+  align-items: center;
+  margin-top: 1.2em;
+}
+
+.CSVImporter_ImporterFrame__footerFill {
+  flex: 1 1 0;
+}
+
+.CSVImporter_ImporterFrame__footerError {
+  flex: none;
+  line-height: 0.8;
+  color: #c00000;
+  word-break: break-word;
+}
+
+.CSVImporter_ImporterFrame__footerSecondary {
+  flex: none;
+  display: flex;
+  margin-left: 1em;
+}
+
+.CSVImporter_ImporterFrame__footerNext {
+  flex: none;
+  display: flex;
+  margin-left: 1em;
+}
+
+.CSVImporter_FileSelector {
+  border: 1px dashed seagreen;
+  padding: 4em;
+  border-radius: 0.4em;
+  background: #f0f0f0;
+  text-align: center;
+  color: #202020;
+  cursor: pointer;
+}
+
+.CSVImporter_FileSelector[data-active="true"] {
+  background: #d7d7d7;
+  transition: background 0.1s ease-out;
+}
+
+.CSVImporter_FormatErrorMessage {
+  display: flex;
+  align-items: center;
+  padding: 0.5em 1em;
+  border-radius: 0.4em;
+  background: #f0f0f0;
+  color: #c00000;
+}
+
+.CSVImporter_FormatErrorMessage > span {
+  flex: 1 1 0;
+  margin-right: 1em;
+  width: 0;
+  word-break: break-word;
+}
+
+.CSVImporter_FormatRawPreview__scroll {
+  margin-bottom: 1.2em;
+  height: 6em;
+  overflow: auto;
+  border-radius: 0.4em;
+  background: #404040;
+  color: #f0f0f0;
+}
+
+.CSVImporter_FormatRawPreview__pre {
+  margin: 0;
+  padding: 0.5em 1em;
+  line-height: 1.25;
+  font-size: 1.15em;
+}
+
+.CSVImporter_FormatRawPreview__pre > aside {
+  display: inline-block;
+  margin-left: 0.2em;
+  padding: 0 0.25em;
+  border-radius: 0.2em;
+  background: #fff;
+  font-size: 0.75em;
+  color: gray;
+  opacity: 0.75;
+}
+
+.CSVImporter_FormatDataRowPreview {
+  max-height: 12em;
+  min-height: 6em;
+  border: 1px solid gray;
+  overflow: scroll;
+}
+
+.CSVImporter_FormatDataRowPreview__table {
+  width: 100%;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.CSVImporter_FormatDataRowPreview__table > thead > tr > th {
+  font-style: italic;
+  font-weight: normal;
+  color: gray;
+}
+
+.CSVImporter_FormatDataRowPreview__table > thead > tr > th,
+.CSVImporter_FormatDataRowPreview__table > tbody > tr > td {
+  border-right: 1px solid rgba(128, 128, 128, 0.5);
+  padding: 0.5em 0.5em;
+  line-height: 1;
+  font-size: 0.75em;
+  white-space: nowrap;
+}
+
+.CSVImporter_FormatDataRowPreview__table > thead > tr > th:last-child,
+.CSVImporter_FormatDataRowPreview__table > tbody > tr > td:last-child {
+  border-right: none;
+}
+
+.CSVImporter_FormatDataRowPreview__table > thead + tbody > tr:first-child > td,
+.CSVImporter_FormatDataRowPreview__table > tbody > tr + tr > td {
+  padding-top: 0;
+}
+
+.CSVImporter_FileStep__header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5em;
+  font-size: 1.15em;
+  color: gray;
+}
+
+.CSVImporter_FileStep__headerToggle {
+  display: flex;
+  align-items: center;
+  margin-top: -0.5em;
+  margin-bottom: -0.5em;
+  margin-left: 1.5em;
+  color: #202020;
+  cursor: pointer;
+}
+
+.CSVImporter_FileStep__headerToggle > input[type="checkbox"] {
+  margin-right: 0.5em;
+  width: 1.2em;
+  height: 1.2em;
+  cursor: pointer;
+}
+
+.CSVImporter_FileStep__mainPendingBlock {
+  display: flex;
+  align-content: center;
+  justify-content: center;
+  padding: 2em;
+  color: gray;
+}
+
+.CSVImporter_ColumnDragCard {
+  position: relative;
+  z-index: 0;
+  padding: 0.5em 0.75em;
+  border-radius: 0.4em;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+  cursor: default;
+}
+
+.CSVImporter_ColumnDragCard[data-draggable="true"] {
+  cursor: grab;
+  touch-action: none;
+}
+
+.CSVImporter_ColumnDragCard[data-dummy="true"] {
+  border-radius: 0;
+  background: #f0f0f0;
+  box-shadow: none;
+  opacity: 0.5;
+  user-select: none;
+}
+
+.CSVImporter_ColumnDragCard[data-error="true"] {
+  background: rgba(192, 0, 0, 0.25);
+  color: #202020;
+}
+
+.CSVImporter_ColumnDragCard[data-shadow="true"] {
+  background: #f0f0f0;
+  box-shadow: none;
+  color: rgba(32, 32, 32, 0.25);
+}
+
+.CSVImporter_ColumnDragCard[data-drop-indicator="true"] {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  color: #000;
+}
+
+.CSVImporter_ColumnDragCard__cardHeader {
+  margin-top: -0.25em;
+  margin-right: -0.5em;
+  margin-bottom: 0.25em;
+  margin-left: -0.5em;
+  height: 1.5em;
+  font-weight: bold;
+  color: gray;
+}
+
+.CSVImporter_ColumnDragCard__cardHeader > b {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #f0f0f0;
+  line-height: 1;
+}
+
+.CSVImporter_ColumnDragCard__cardHeader > var {
+  display: block;
+  margin-bottom: -1px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.CSVImporter_ColumnDragCard__cardPaper[data-draggable="true"]:hover
+  .CSVImporter_ColumnDragCard__cardHeader,
+.CSVImporter_ColumnDragCard__cardPaper[data-dragged="true"]
+  .CSVImporter_ColumnDragCard__cardHeader {
+  color: #000;
+}
+
+.CSVImporter_ColumnDragCard__cardValue {
+  margin-top: 0.25em;
+  overflow: hidden;
+  line-height: 1.25em;
+  font-size: 0.75em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.CSVImporter_ColumnDragCard__cardValue[data-header="true"] {
+  text-align: center;
+  font-style: italic;
+  color: gray;
+}
+
+.CSVImporter_ColumnDragCard__cardValue + div {
+  margin-top: 0;
+}
+
+.CSVImporter_ColumnDragCard[data-shadow="true"]
+  > .CSVImporter_ColumnDragCard__cardValue[data-header="true"] {
+  color: rgba(128, 128, 128, 0.25);
+}
+
+.CSVImporter_ColumnDragObject__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: none;
+  pointer-events: none;
+}
+
+.CSVImporter_ColumnDragObject__positioner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 8em;
+  width: 0;
+  height: 0;
+}
+
+.CSVImporter_ColumnDragObject__holder {
+  position: absolute;
+  top: -0.75em;
+  left: -0.75em;
+  width: 100%;
+  opacity: 0.9;
+}
+
+.CSVImporter_ColumnDragSourceArea {
+  display: flex;
+  margin-top: 0.5em;
+  margin-bottom: 1em;
+}
+
+.CSVImporter_ColumnDragSourceArea__control {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.CSVImporter_ColumnDragSourceArea__page {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  padding-top: 0.5em;
+  padding-left: 0.5em;
+}
+
+.CSVImporter_ColumnDragSourceArea__pageIndicator {
+  position: absolute;
+  top: -0.5em;
+  right: 0;
+  left: 0;
+  text-align: center;
+  font-size: 0.75em;
+}
+
+.CSVImporter_ColumnDragSourceArea__pageFiller {
+  flex: 1 1 0;
+  margin-right: 0.5em;
+}
+
+.CSVImporter_ColumnDragSourceArea__box {
+  position: relative;
+  flex: 1 1 0;
+  margin-right: 0.5em;
+  width: 0;
+}
+
+.CSVImporter_ColumnDragSourceArea__boxAction {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+}
+
+.CSVImporter_ColumnDragTargetArea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.CSVImporter_ColumnDragTargetArea__box {
+  flex-basis: 25%;
+  flex-grow: 0;
+  flex-shrink: 1;
+  width: 0;
+  padding-top: 1em;
+  padding-right: 1em;
+}
+
+.CSVImporter_ColumnDragTargetArea__boxLabel {
+  margin-bottom: 0.25em;
+  font-weight: bold;
+  color: #202020;
+  word-break: break-word;
+}
+
+.CSVImporter_ColumnDragTargetArea__boxLabel > b {
+  margin-left: 0.25em;
+  color: #c00000;
+}
+
+.CSVImporter_ColumnDragTargetArea__boxValue {
+  position: relative;
+  z-index: 0;
+}
+
+.CSVImporter_ColumnDragTargetArea__boxValueAction {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+}
+
+.CSVImporter_ColumnDragTargetArea__boxPlaceholderHelp {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 98%;
+  padding: 0.5em;
+  text-align: center;
+  color: gray;
+}
+
+.CSVImporter_ProgressDisplay {
+  padding: 2em;
+}
+
+.CSVImporter_ProgressDisplay__status {
+  text-align: center;
+  font-size: 1.15em;
+  color: #202020;
+}
+
+.CSVImporter_ProgressDisplay__status.-pending {
+  color: gray;
+}
+
+.CSVImporter_ProgressDisplay__count {
+  text-align: right;
+  font-size: 1em;
+  color: gray;
+}
+
+.CSVImporter_ProgressDisplay__count > var {
+  display: inline-block;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.CSVImporter_ProgressDisplay__progressBar {
+  position: relative;
+  width: 100%;
+  height: 0.5em;
+  background: #f0f0f0;
+}
+
+.CSVImporter_ProgressDisplay__progressBarIndicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: #2e8b5799;
+  border-radius: 0.4em;
+  transition: width 0.2s ease-out;
+}
+
+.CSVImporter_Importer {
+  box-sizing: border-box;
+  line-height: 1.4;
+}
+
+.CSVImporter_Importer * {
+  box-sizing: border-box;
+}
+
+body.CSVImporter_dragging {
+  -webkit-user-select: none;
+  user-select: none;
+}

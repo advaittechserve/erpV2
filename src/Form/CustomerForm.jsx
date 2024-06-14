@@ -3,23 +3,28 @@ import '../css/customerform.css';
 import GenerateRandomId from '../functions/GenerateRandomId';
 import axios from 'axios';
 import StatusModal from '../Components/StatusModal';
+import { uploadCustomerData } from '../functions/customerDataHandler';
+import { uploadBankData } from '../functions/bankDataHandler';
+import { uploadAtmData } from '../functions/atmDataHandler';
 
 const CustomerForm = () => {
     const [customerName, setCustomerName] = useState('');
+    const [customerStatus, setCustomerStatus] = useState('');
+    const [customerSuggestions, setCustomerSuggestions] = useState([]);
     const [bankName, setBankName] = useState('');
     const [bankSuggestions, setBankSuggestions] = useState([]);
-    const [customerSuggestions, setCustomerSuggestions] = useState([]);
+    const [atmSuggestions, setAtmSuggestions] = useState([]);
+    const [selectedAtmDetails, setSelectedAtmDetails] = useState(null);
+
     const [countries, setCountries] = useState([]);
     const [states, setStates] = useState([]);
     const [cities, setCities] = useState([]);
     const [selectedCountry, setSelectedCountry] = useState('');
     const [selectedState, setSelectedState] = useState('');
     const [selectedCity, setSelectedCity] = useState('');
-
-
     const [atmDetails, setAtmDetails] = useState([{
         id: 1, AtmId: '', Address: '', BranchCode: '', SiteId: '', Lho: '', SiteStatus: '', BankId: '', CustomerId: '', SiteType: '',
-        RequestedBy: '', FromDate: '', ToDate: '', RequestFile: null,RequestFileName: null, sameAsAbove: false, isDatePickerFromDate: false, isDatePickerToDate: false
+        RequestedBy: '', FromDate: '', ToDate: '', RequestFile: null, RequestFileName: null, sameAsAbove: false, isDatePickerFromDate: false, isDatePickerToDate: false
     }]);
     const [isDatePickerStartDate, setIsDatePickerStartDate] = useState(false);
     const [isDatePickerEndDate, setIsDatePickerEndDate] = useState(false);
@@ -45,7 +50,7 @@ const CustomerForm = () => {
         const newId = atmDetails[atmDetails.length - 1].id + 1;
         setAtmDetails([...atmDetails, {
             id: newId, AtmId: '', Address: '', BranchCode: '', SiteId: '', Lho: '', SiteStatus: '', BankId: '', CustomerId: '', SiteType: '',
-            RequestedBy: '', FromDate: '', ToDate: '', RequestFile: null,RequestFileName: null, sameAsAbove: false, isDatePickerFromDate: false, isDatePickerToDate: false
+            RequestedBy: '', FromDate: '', ToDate: '', RequestFile: null, RequestFileName: null, sameAsAbove: false, isDatePickerFromDate: false, isDatePickerToDate: false
         }]);
     };
 
@@ -66,7 +71,7 @@ const CustomerForm = () => {
         const newAtmDetails = [...atmDetails];
         if (name === "RequestFile" && files) {
             newAtmDetails[index][name] = files[0]; // Save the file object
-            newAtmDetails[index]['RequestFileName'] = files[0].name; 
+            newAtmDetails[index]['RequestFileName'] = files[0].name;
         } else {
             newAtmDetails[index][name] = value;
         }
@@ -106,6 +111,17 @@ const CustomerForm = () => {
         fetchBankSuggestions(e.target.value);
     };
 
+    const handleAtmIdChange = (index, event) => {
+        const { value } = event.target;
+        // Update ATM Id in state
+        const newAtmDetails = [...atmDetails];
+        newAtmDetails[index].AtmId = value;
+        setAtmDetails(newAtmDetails);
+
+        // Fetch suggestions based on ATM Id input
+        fetchAtmSuggestions(value);
+    };
+
     const fetchCustomerSuggestions = async (query) => {
         if (query.length > 1) {
             const response = await axios.get(`http://localhost:5000/customer?name=${query}`);
@@ -124,14 +140,100 @@ const CustomerForm = () => {
         }
     };
 
-    const handleCustomerSuggestionClick = (suggestion) => {
+    const fetchAtmSuggestions = async (query) => {
+        if (query.length > 1) {
+            const response = await axios.get(`http://localhost:5000/atm?AtmId=${query}`);
+            setAtmSuggestions(response.data);
+        } else {
+            setAtmSuggestions([]);
+        }
+    };
+
+    const handleCustomerSuggestionClick = async (suggestion) => {
         setCustomerName(suggestion);
         setCustomerSuggestions([]);
+        try {
+            // Fetch customer details based on customer name (assuming an API endpoint for this)
+            const response = await fetch(`http://localhost:5000/customer?name=${suggestion}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch customer details');
+            }
+            const data = await response.json();
+            if (data.length > 0) {
+                const { CustomerSiteStatus, StartDate, EndDate } = data[0]; // Adjust based on API response structure
+                setCustomerStatus(CustomerSiteStatus);
+                setStartDate(StartDate);
+                setEndDate(EndDate);
+            } else {
+                // Handle case where no details are found for the selected customer
+                setCustomerStatus('');
+                setStartDate('');
+                setEndDate('');
+            }
+        } catch (error) {
+            console.error('Error fetching customer details:', error);
+            // Handle error fetching customer details
+        }
     };
 
     const handleBankSuggestionClick = (suggestion) => {
         setBankName(suggestion);
         setBankSuggestions([]);
+    };
+
+    const handleAtmSuggestionClick = async (suggestion, index) => {
+        try {
+            // Create a copy of atmDetails state
+            const newAtmDetails = [...atmDetails];
+
+            // Check if the index is within the bounds of newAtmDetails
+            if (index >= 0 && index < newAtmDetails.length) {
+                // Update AtmId in the specified index
+                newAtmDetails[index] = {
+                    ...newAtmDetails[index],
+                    AtmId: suggestion.AtmId,
+                };
+
+                // Update other fields based on fetched data (if applicable)
+                const response = await fetch(`http://localhost:5000/atm?AtmId=${suggestion.AtmId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch ATM details');
+                }
+                const data = await response.json();
+
+                if (data.length > 0) {
+                    const { Address, BranchCode, SiteId, Lho, SiteStatus, SiteType, FromDate, ToDate, RequestedBy } = data[0];
+                    newAtmDetails[index] = {
+                        ...newAtmDetails[index],
+                        Address,
+                        BranchCode,
+                        SiteId,
+                        Lho,
+                        SiteStatus,
+                        SiteType,
+                        FromDate,
+                        ToDate,
+                        RequestedBy,
+                    };
+                } else {
+                    console.error('No details found for ATM ID:', suggestion.AtmId);
+                    // Handle case where no details are found for the selected ATM (optional)
+                }
+
+                // Update atmDetails state with the modified copy
+                setAtmDetails(newAtmDetails);
+
+                // Optionally store selected ATM details for display or further use
+                setSelectedAtmDetails(data[0]);
+            } else {
+                console.error('Index out of bounds:', index);
+                // Handle the case where the index is invalid (optional)
+            }
+        } catch (error) {
+            console.error('Error fetching or updating ATM details:', error);
+            // Handle error as needed
+        }
+        setAtmSuggestions([]);
     };
 
     const handleFocusStartDate = () => {
@@ -188,77 +290,49 @@ const CustomerForm = () => {
         event.preventDefault();
         setShowModal(true);
         setIsUploading(true);
+
         if (!validateDates()) {
             updateStatusMessage('Invalid date range.');
+            setIsUploading(false);
             return;
         }
-    
+
         let customerId = GenerateRandomId(12);
-        const bankId = GenerateRandomId(7);
+        const bankId = document.getElementById('BankName').value;
         const bankName = document.getElementById('BankName').value;
         const customerSiteStatus = document.getElementById('CustomerSiteStatus').value;
-    
+
         try {
-            // Check and insert customer data
             updateStatusMessage('Checking if customer exists...');
-            await delay(1000);            
-            const checkResponseCustomer = await axios.get(`http://localhost:5000/customer?name=${customerName}`);
-            if (checkResponseCustomer.data && checkResponseCustomer.data.length > 0) {
-                customerId = checkResponseCustomer.data[0].CustomerId;
-                updateStatusMessage('Customer already exists');
-                await delay(1000);
-            } else {
-                updateStatusMessage('Inserting new customer data...');
-                await delay(1000);
-                const customerData = {
-                    CustomerId: customerId,
-                    CustomerName: customerName,
-                    CustomerSiteStatus: customerSiteStatus,
-                    StartDate: startDate,
-                    EndDate: endDate
-                };
-                const insertResponseCustomer = await axios.post('http://localhost:5000/api/insertCustomerData', customerData);
-                if (insertResponseCustomer.status !== 200) {
-                    updateStatusMessage('Error inserting customer data');
-                    await delay(1000);
-                    return;
-                }
-                updateStatusMessage('Customer data inserted successfully');
-                await delay(1000);
-            }
-    
-            // Check and insert bank data
+            await delay(500);
+
+            const customerData = [{
+                CustomerId: customerId,
+                CustomerName: customerName,
+                CustomerSiteStatus: customerSiteStatus,
+                StartDate: startDate,
+                EndDate: endDate,
+            }];
+
+            await uploadCustomerData(customerData);
+            updateStatusMessage('Customer data processed successfully');
+            await delay(500);
+
             updateStatusMessage('Checking if bank exists...');
-            await delay(1000);
-            const checkResponseBank = await axios.get(`http://localhost:5000/bank?name=${bankName}`);
-            let bankIdToUse = bankId;
-            if (checkResponseBank.data && checkResponseBank.data.length > 0) {
-                bankIdToUse = checkResponseBank.data[0].BankId;
-                updateStatusMessage(`Bank already exists with ID: ${bankIdToUse}`);
-                await delay(1000);
-            } else {
-                updateStatusMessage('Inserting new bank data...');
-                await delay(1000);
-                const bankData = {
-                    BankId: bankIdToUse,
-                    BankName: bankName,
-                    CustomerId: customerId
-                };
-                const insertResponseBank = await axios.post('http://localhost:5000/api/insertBankData', bankData);
-                if (insertResponseBank.status !== 200) {
-                    updateStatusMessage('Error inserting bank data');
-                    await delay(1000);
-                    return;
-                }
-                updateStatusMessage('Bank data inserted successfully');
-                await delay(1000);
-            }
-    
-            // Insert ATM data
+            await delay(500);
+
+            const bankData = {
+                BankId: bankId,
+                BankName: bankName,
+            };
+
+            await uploadBankData(bankData);
             updateStatusMessage('Fetching existing ATM IDs...');
-            await delay(1000);
+            await delay(500);
+
             const existingAtmIdsResponse = await axios.get('http://localhost:5000/atm');
             const existingAtmIds = existingAtmIdsResponse.data.map((atm) => atm.AtmId);
+
             const updatedAtmDetails = atmDetails.map((atmDetail) => {
                 const { AtmId, RequestFile, ...rest } = atmDetail;
                 if (existingAtmIds.includes(AtmId)) {
@@ -270,67 +344,204 @@ const CustomerForm = () => {
                     Country: selectedCountry,
                     State: selectedState,
                     City: selectedCity,
-                    BankId: bankIdToUse,
+                    BankId: bankId,
                     CustomerId: customerId,
-                    RequestFileName: RequestFile ? RequestFile.name : null // Correctly assign the file name
+                    RequestFileName: RequestFile ? RequestFile.name : null,
                 };
             }).filter((atmDetail) => atmDetail !== null);
-    
+
             if (updatedAtmDetails.length > 0) {
                 updateStatusMessage('Inserting ATM details...');
-                await delay(1000);
-                const insertResponseAtm = await axios.post('http://localhost:5000/api/insertAtmData', { atmDetails: updatedAtmDetails });
-                if (insertResponseAtm.status !== 200) {
-                    updateStatusMessage('Error inserting ATM details');
-                    await delay(1000);
-                    return;
-                }
+                await delay(500);
+                await uploadAtmData(updatedAtmDetails);
+
                 updateStatusMessage('ATM details submitted successfully');
-                await delay(1000);
+                await delay(500);
             } else {
                 updateStatusMessage('No new ATM details to insert.');
-                await delay(1000);
+                await delay(500);
             }
-    
-            // Handle file uploads
+
             updateStatusMessage('Handling file uploads...');
-            await delay(1000);
+            await delay(500);
+
             for (const atmDetail of atmDetails) {
                 if (atmDetail.RequestFile) {
                     const formData = new FormData();
                     formData.append('file', atmDetail.RequestFile);
                     formData.append('atmId', atmDetail.AtmId);
-    
+
                     const fileUploadResponse = await axios.post('http://localhost:5000/api/uploadFile', formData, {
                         headers: {
                             'Content-Type': 'multipart/form-data'
                         }
                     });
-    
+
                     if (fileUploadResponse.status !== 200) {
                         updateStatusMessage(`Error uploading file for ATM ID: ${atmDetail.AtmId}`);
-                        await delay(1000);
+                        console.error('File upload error:', fileUploadResponse.data);
+                        await delay(500);
                     } else {
                         updateStatusMessage(`File uploaded successfully for ATM ID: ${atmDetail.AtmId}`);
-                        await delay(1000);
-                        updateStatusMessage(`Successfully uploaded data!`);
-                        await delay(1000);
+                        await delay(500);
                     }
                 }
             }
+
+            updateStatusMessage('Successfully uploaded data!');
+            await delay(500);
         } catch (error) {
             console.error('Error in handleSubmit:', error);
             updateStatusMessage('An error occurred during submission.');
-        }
-        finally {
-            setIsUploading(false); // Stop the uploading animation
+        } finally {
+            setIsUploading(false);
         }
     };
-    
-    
-    
 
+    // const handleSubmit = async (event) => {
+    //     event.preventDefault();
+    //     setShowModal(true);
+    //     setIsUploading(true);
+    //     if (!validateDates()) {
+    //         updateStatusMessage('Invalid date range.');
+    //         return;
+    //     }
 
+    //     let customerId = GenerateRandomId(12);
+    //     const bankId = GenerateRandomId(7);
+    //     const bankName = document.getElementById('BankName').value;
+    //     const customerSiteStatus = document.getElementById('CustomerSiteStatus').value;
+
+    //     try {
+    //         // Check and insert customer data
+    //         updateStatusMessage('Checking if customer exists...');
+    //         await delay(500);
+    //         const checkResponseCustomer = await axios.get(`http://localhost:5000/customer?name=${customerName}`);
+    //         if (checkResponseCustomer.data && checkResponseCustomer.data.length > 0) {
+    //             customerId = checkResponseCustomer.data[0].CustomerId;
+    //             updateStatusMessage('Customer already exists');
+    //             await delay(500);
+    //         } else {
+    //             updateStatusMessage('Inserting new customer data...');
+    //             await delay(500);
+    //             const customerData = {
+    //                 CustomerId: customerId,
+    //                 CustomerName: customerName,
+    //                 CustomerSiteStatus: customerSiteStatus,
+    //                 StartDate: startDate,
+    //                 EndDate: endDate
+    //             };
+    //             const insertResponseCustomer = await axios.post('http://localhost:5000/api/insertCustomerData', customerData);
+    //             if (insertResponseCustomer.status !== 200) {
+    //                 updateStatusMessage('Error inserting customer data');
+    //                 await delay(500);
+    //                 return;
+    //             }
+    //             updateStatusMessage('Customer data inserted successfully');
+    //             await delay(500);
+    //         }
+
+    //         // Check and insert bank data
+    //         updateStatusMessage('Checking if bank exists...');
+    //         await delay(500);
+    //         const checkResponseBank = await axios.get(`http://localhost:5000/bank?name=${bankName}`);
+    //         let bankIdToUse = bankId;
+    //         if (checkResponseBank.data && checkResponseBank.data.length > 0) {
+    //             bankIdToUse = checkResponseBank.data[0].BankId;
+    //             updateStatusMessage(`Bank already exists with ID: ${bankIdToUse}`);
+    //             await delay(500);
+    //         } else {
+    //             updateStatusMessage('Inserting new bank data...');
+    //             await delay(500);
+    //             const bankData = {
+    //                 BankId: bankIdToUse,
+    //                 BankName: bankName,
+    //             };
+    //             const insertResponseBank = await axios.post('http://localhost:5000/api/insertBankData', bankData);
+    //             const response = await axios.post('http://localhost:5000/api/insertBankIdCustomerIdData', {
+    //                 BankId: bankIdToUse, CustomerId: customerId
+    //             });
+    //             if (insertResponseBank.status !== 200 && response.status !== 200) {
+    //                 updateStatusMessage('Error inserting bank data');
+    //                 await delay(500);
+    //                 return;
+    //             }
+    //             updateStatusMessage('Bank data inserted successfully');
+    //             await delay(500);
+    //         }
+
+    //         // Insert ATM data
+    //         updateStatusMessage('Fetching existing ATM IDs...');
+    //         await delay(500);
+    //         const existingAtmIdsResponse = await axios.get('http://localhost:5000/atm');
+    //         const existingAtmIds = existingAtmIdsResponse.data.map((atm) => atm.AtmId);
+    //         const updatedAtmDetails = atmDetails.map((atmDetail) => {
+    //             const { AtmId, RequestFile, ...rest } = atmDetail;
+    //             if (existingAtmIds.includes(AtmId)) {
+    //                 return null;
+    //             }
+    //             return {
+    //                 ...rest,
+    //                 AtmId,
+    //                 Country: selectedCountry,
+    //                 State: selectedState,
+    //                 City: selectedCity,
+    //                 BankId: bankIdToUse,
+    //                 CustomerId: customerId,
+    //                 RequestFileName: RequestFile ? RequestFile.name : null // Correctly assign the file name
+    //             };
+    //         }).filter((atmDetail) => atmDetail !== null);
+
+    //         if (updatedAtmDetails.length > 0) {
+    //             updateStatusMessage('Inserting ATM details...');
+    //             await delay(500);
+    //             const insertResponseAtm = await axios.post('http://localhost:5000/api/insertAtmData', { atmDetails: updatedAtmDetails });
+    //             if (insertResponseAtm.status !== 200) {
+    //                 updateStatusMessage('Error inserting ATM details');
+    //                 await delay(500);
+    //                 return;
+    //             }
+    //             updateStatusMessage('ATM details submitted successfully');
+    //             await delay(500);
+    //         } else {
+    //             updateStatusMessage('No new ATM details to insert.');
+    //             await delay(500);
+    //         }
+
+    //         // Handle file uploads
+    //         updateStatusMessage('Handling file uploads...');
+    //         await delay(500);
+    //         for (const atmDetail of atmDetails) {
+    //             if (atmDetail.RequestFile) {
+    //                 const formData = new FormData();
+    //                 formData.append('file', atmDetail.RequestFile);
+    //                 formData.append('atmId', atmDetail.AtmId);
+
+    //                 const fileUploadResponse = await axios.post('http://localhost:5000/api/uploadFile', formData, {
+    //                     headers: {
+    //                         'Content-Type': 'multipart/form-data'
+    //                     }
+    //                 });
+
+    //                 if (fileUploadResponse.status !== 200) {
+    //                     updateStatusMessage(`Error uploading file for ATM ID: ${atmDetail.AtmId}`);
+    //                     await delay(500);
+    //                 } else {
+    //                     updateStatusMessage(`File uploaded successfully for ATM ID: ${atmDetail.AtmId}`);
+    //                     await delay(500);
+    //                     updateStatusMessage(`Successfully uploaded data!`);
+    //                     await delay(500);
+    //                 }
+    //             }
+    //         }
+    //     } catch (error) {
+    //         console.error('Error in handleSubmit:', error);
+    //         updateStatusMessage('An error occurred during submission.');
+    //     }
+    //     finally {
+    //         setIsUploading(false); // Stop the uploading animation
+    //     }
+    // };
 
     return (
         <div className='container-form'>
@@ -361,6 +572,8 @@ const CustomerForm = () => {
                             name="CustomerSiteStatus"
                             id="CustomerSiteStatus"
                             className="dropdown"
+                            value={customerStatus}
+                            onChange={(e) => setCustomerStatus(e.target.value)}
                         >
                             <option value="" disabled>Customer Status</option>
                             <option value="Active">Active</option>
@@ -484,11 +697,18 @@ const CustomerForm = () => {
                                         type="text"
                                         name="AtmId"
                                         value={atm.AtmId}
-                                        onChange={(event) => handleInputChange(index, event)}
+                                        onChange={(event) => handleAtmIdChange(index, event)}
                                         className="dropdown"
                                         placeholder="Atm Id"
                                         required
                                     />
+                                    <ul className='ul-suggestion'>
+                                        {atmSuggestions.map((suggestion, index) => (
+                                            <li className='li-suggestion' key={index} onClick={() => handleAtmSuggestionClick(suggestion, index)}>
+                                                {suggestion.AtmId} {/* Adjust based on your suggestion structure */}
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                                 <div>
                                     <input
@@ -651,7 +871,7 @@ const CustomerForm = () => {
 
                 <button type="submit" className="submit-btn">Submit</button>
             </form>
-            <StatusModal show={showModal} handleClose={handleCloseModal} message={statusMessage}  isUploading={isUploading} />
+            <StatusModal show={showModal} handleClose={handleCloseModal} message={statusMessage} isUploading={isUploading} />
         </div>
 
     );

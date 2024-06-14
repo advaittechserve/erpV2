@@ -44,7 +44,7 @@ const EmployeeForm = () => {
 
     const fetchAtmIds = async (customerId) => {
         try {
-            const response = await fetch(`http://localhost:5000/atm?Id=${customerId}`);
+            const response = await fetch(`http://localhost:5000/atm?CustomerId=${customerId}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch ATM IDs');
             }
@@ -66,20 +66,26 @@ const EmployeeForm = () => {
                 TypeOfWork: typeOfWork,
                 EmployeeRole: typeOfEmployee,
                 CustomerId: selectedCustomer,
-                AtmId: selectedAtmId 
+                AtmId: selectedAtmId
             }]
         };
         setShowModal(true);
         setIsUploading(true);
         setModalMessage('Uploading employee details...');
-        await delay(2000); 
+        await delay(500);
 
         try {
             const insertResponseEmployee = await axios.post('http://localhost:5000/api/insertEmployeeData', formData);
             if (insertResponseEmployee.status === 200) {
-                setModalMessage('Employee details submitted successfully');
-            } else {
-                setModalMessage('Error inserting Employee details');
+                setModalMessage('name submitted successfully');
+                const response = await axios.post('http://localhost:5000/api/insertEmployeeIdAtmIdData', {
+                  AtmId: selectedAtmId, EmployeeId: employeeId ,
+                });
+                if (response.status === 200) {
+                    setModalMessage('Employee details submitted successfully');
+                } else {
+                    setModalMessage('Error inserting Employee details');
+                }
             }
         } catch (error) {
             setModalMessage('Error inserting Employee details');
@@ -148,8 +154,8 @@ const EmployeeForm = () => {
                         ))}
                     </select>
                     <select
-                        value={selectedAtmId} 
-                        onChange={(e) => setSelectedAtmId(e.target.value)} 
+                        value={selectedAtmId}
+                        onChange={(e) => setSelectedAtmId(e.target.value)}
                         className="dropdown"
                     >
                         <option value="NA">Select ATM ID</option>

@@ -1,3 +1,9 @@
+const { uploadCustomerData } = require('./backendfunctions/customerDataHandler.js');
+const {uploadBankData} = require('./backendfunctions/bankDataHandler.js');
+const {uploadAtmData} = require('./backendfunctions/atmDataHandler.js');
+const {uploadEmployeeData} = require('./backendfunctions/employeeDataHandler.js');
+const {uploadServiceData} = require('./backendfunctions/serviceDataHandler.js');
+
 require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql');
@@ -5,6 +11,9 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const fs = require('fs');
+const Papa = require('papaparse');
+const XLSX = require('xlsx');
 const app = express();
 const port = 5000;
 process.env.TZ = 'Asia/Kolkata'; // Set the server timezone to IST
@@ -43,11 +52,59 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-const fs = require('fs');
+
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
+//log upload
+app.post('/api/newUploadLog', (req, res) => {
+  const timestamp = new Date().toISOString().replace(/:/g, '-');
+  const logFileName = `upload-${timestamp}.txt`;
+  currentLogFile = path.join(__dirname, 'loguploads', logFileName);
+  
+  fs.writeFile(currentLogFile, '', (err) => {
+    if (err) {
+      console.error('Error creating log file:', err);
+      return res.status(500).send('Error creating log file');
+    }
+    res.status(200).send({ logFileName });
+  });
+});
+app.post('/api/log', (req, res) => {
+  const logEntry = req.body.message;
+  const logFilePath = 'customerDataLog.txt';
 
+  fs.appendFile(logFilePath, logEntry, 'utf8', (err) => {
+    if (err) {
+      console.error('Error appending to log file:', err);
+      res.status(500).send('Error appending to log file');
+      return;
+    }
+    res.sendStatus(200);
+  });
+});
+app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    const workbook = XLSX.readFile(file.path); // Read Excel file
+    const sheetName = workbook.SheetNames[0]; // Get the first sheet name
+    const worksheet = workbook.Sheets[sheetName]; // Get the worksheet
+    const jsonData = XLSX.utils.sheet_to_json(worksheet); // Convert sheet to JSON
+    // Process jsonData (assuming you have an uploadCustomerData function)
+    await uploadCustomerData(jsonData);
+    await uploadBankData(jsonData);
+    await uploadAtmData(jsonData);
+    await uploadEmployeeData(jsonData);
+    await uploadServiceData(jsonData);
+    return res.json({ message: 'File uploaded successfully' });
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    return res.status(500).json({ message: 'Error uploading file' });
+  }
+});
 // File upload route
 app.post('/api/uploadFile', upload.single('file'), (req, res) => {
   try {
@@ -79,135 +136,291 @@ app.post('/api/uploadfiledata', (req, res) => {
       console.error('Error inserting upload file data:', err);
       res.status(500).json({ error: 'Error inserting upload file data' });
     } else {
-      console.log('Uploaded file data inserted successfully');
+  
       res.status(201).json({ message: 'Uploaded file data inserted successfully' });
     }
   });
 });
-app.post('/api/insertData', async (req, res) => {
-  const data = req.body;
-  try {
-    try {
-      // Insert data into 'customer' table
-      const customerData = data.map((row) => [row.CustomerId, row.CustomerName]);
-      const customercheckQuery = 'SELECT * FROM customer WHERE CustomerId = ?';
-      const customerExists = await checkIfExists(connection, customercheckQuery, data.map((row) => [row.CustomerId]));
-
-      if (!customerExists) {
-        const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName , CustomerSiteStatus , StartDate , EndDate) VALUES ?';
-        await insertWithForeignKeyCheck(connection, customerQuery, customerData).catch(error => {
-          console.error('Error inserting customer data:', error);
-          throw error;
-
-        });
-      }
-
-      // Insert data into 'bank' table
-      const bankData = data.map((row) => [row.BankId, row.BankName, row.AtmCount, row.Field, row.CustomerId]);
-      const bankQuery = 'INSERT INTO bank (BankId, BankName, AtmCount, Field, CustomerId) VALUES ?';
-      await insertWithForeignKeyCheck(connection, bankQuery, bankData).catch(error => {
-        console.error('Error inserting bank data:', error);
-        throw error;
-      });
-
-      // Insert data into 'atm' table
-      const atmData = data.map((row) => [row.AtmId, row.State, row.City, row.Address, row.BranchCode, row.SiteId, row.Lho, row.Region, row.OldAtmId, row.NewAtmId, row.SiteStatus, row.BankId]);
-      const atmQuery = 'INSERT INTO atm (AtmId, Country, State, City, Address, BranchCode, SiteId, Lho, Region, OldAtmId, NewAtmId, SiteStatus, BankId) VALUES ?';
-      await insertWithForeignKeyCheck(connection, atmQuery, atmData).catch(error => {
-        console.error('Error inserting atm data:', error);
-        throw error;
-      });
-
-      // Insert data into 'region' table
-      const regionData = data.map((row) => [row.RegionId, row.RegionName, row.GstStateCode, row.AtmId]);
-      const regionQuery = 'INSERT INTO atmregion (RegionId, RegionName, GstStateCode, AtmId) VALUES ?';
-      await insertWithForeignKeyCheck(connection, regionQuery, regionData).catch(error => {
-        console.error('Error inserting region data:', error);
-        throw error;
-      });
-
-      // Insert data into 'employee' table
-      const employeeData = data.map((row) => [row.EmployeeId, row.EmployeeName, row.EmployeeRole, row.EmployeeContactNumber, row.TypeOfWork, row.AtmId]);
-      const employeeQuery = 'INSERT INTO employee (EmployeeId, EmployeeName, EmployeeRole, EmployeeContactNumber, TypeOfWork, AtmId) VALUES ?';
-      await insertWithForeignKeyCheck(connection, employeeQuery, employeeData).catch(error => {
-        console.error('Error inserting employee data:', error);
-        throw error;
-      });
-
-      // Insert data into 'services' table
-      const servicesData = data.map((row) => [row.ServiceId, row.ServiceType, row.TakeoverDate, row.HandoverDate, row.CostToClient, row.AtmId]);
-      const servicesQuery = 'INSERT INTO services (ServiceId, ServiceType, TakeoverDate, HandoverDate, CostToClient, AtmId) VALUES ?';
-      await insertWithForeignKeyCheck(connection, servicesQuery, servicesData).catch(error => {
-        console.error('Error inserting services data:', error);
-        throw error;
-      });
-
-      res.status(200).send('Data inserted successfully');
-    } catch (error) {
-      console.log('Data:', data);
-      res.status(500).send('Error inserting data');
-    }
-
-
-
-    res.status(200).send('Data inserted successfully');
-  } catch (error) {
-    // res.status(500).send('Error inserting data');
-  }
-});
+//customer upload
 app.post('/api/insertCustomerData', async (req, res) => {
   try {
-    const data = Array.isArray(req.body) ? req.body : [req.body];
-    const customerData = data.map((row) => [row.CustomerId, row.CustomerName, row.CustomerSiteStatus, row.StartDate, row.EndDate]);
+    let customerData;
+
+    if (req.body.data) {
+      // If the request body has a `data` property, use it directly
+      customerData = req.body.data.map((row) => [
+        row.CustomerId,
+        row.CustomerName,
+        row.CustomerSiteStatus, // Use CustomerStatus instead of CustomerSiteStatus to match the frontend
+        row.StartDate,
+        row.EndDate
+      ]);
+    } else if (Array.isArray(req.body)) {
+      // If the request body is already an array, use it as is
+      customerData = req.body.map((row) => [
+        row.CustomerId,
+        row.CustomerName,
+        row.CustomerSiteStatus,
+        row.StartDate,
+        row.EndDate
+      ]);
+    } else {
+      // Otherwise, map the request body to the desired format
+      customerData = [
+        [
+          req.body.CustomerId,
+          req.body.CustomerName,
+          req.body.CustomerSiteStatus,
+          req.body.StartDate,
+          req.body.EndDate
+        ]
+      ];
+    }
 
     const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus, StartDate, EndDate) VALUES ?';
-    await insertWithForeignKeyCheck(connection, customerQuery, customerData);
-    console.log('Customer data inserted successfully');
+    await connection.query(customerQuery, [customerData]); // Note the double array wrapping
+
     res.status(200).send('Customer data inserted successfully');
   } catch (error) {
     console.error('Error inserting customer data:', error);
     res.status(500).send('Error inserting customer data');
   }
 });
-app.post('/api/insertBankData', async (req, res) => {
-  const data = Array.isArray(req.body) ? req.body : [req.body];
-  const bankData = data.map((row) => [row.BankId, row.BankName]);
-  const bankCustomerData = data.map((row) => [row.BankId, row.CustomerId]);
+app.post('/api/updateCustomerData', async (req, res) => {
+  try {
+    let customerData;
 
-  connection.beginTransaction(async (err) => {
-    if (err) {
-      console.error('Error starting transaction:', err);
-      return res.status(500).send('Error starting transaction');
+    if (req.body.data) {
+      // If the request body has a `data` property, use it directly
+      customerData = req.body.data.map((row) => [
+        row.CustomerName,
+        row.CustomerSiteStatus,
+        row.StartDate,
+        row.EndDate,
+        row.CustomerId // Add CustomerId to the end of the array
+      ]);
+    } else if (Array.isArray(req.body)) {
+      // If the request body is already an array, use it as is
+      customerData = req.body.map((row) => [
+        row.CustomerName,
+        row.CustomerSiteStatus,
+        row.StartDate,
+        row.EndDate,
+        row.CustomerId // Add CustomerId to the end of the array
+      ]);
+    } else {
+      // Otherwise, map the request body to the desired format
+      customerData = [
+        [
+          req.body.CustomerName,
+          req.body.CustomerSiteStatus,
+          req.body.StartDate,
+          req.body.EndDate,
+          req.body.CustomerId // Add CustomerId to the end of the array
+        ]
+      ];
     }
 
-    try {
-      const bankQuery = 'INSERT INTO bank (BankId, BankName) VALUES ?';
-      const bankCustomerQuery = 'INSERT INTO bankid_customerid (BankId, CustomerId) VALUES ?';
+    const customerQuery = 'UPDATE customer SET CustomerName = ?, CustomerSiteStatus = ?, StartDate = ?, EndDate = ? WHERE CustomerId = ?';
+    for (const data of customerData) {
+      await connection.query(customerQuery, data);
+    }
+    res.status(200).send('Customer data updated successfully');
+  } catch (error) {
+    res.status(500).send('Error updating customer data');
+  }
+});
+//bank upload
+app.post('/api/insertBankData', async (req, res) => {
+  try {
+    let bankData = [];
 
-      // Insert data into the bank table
-      await insertWithForeignKeyCheck(connection, bankQuery, bankData);
-
-      // Insert data into the bankid_customerid table
-      await insertWithForeignKeyCheck(connection, bankCustomerQuery, bankCustomerData);
-
-      connection.commit((err) => {
-        if (err) {
-          connection.rollback(() => {
-            console.error('Error committing transaction:', err);
-            return res.status(500).send('Error committing transaction');
-          });
-        } else {
-          res.status(200).send('Data inserted successfully');
+    if (req.body.data) {
+      req.body.data.forEach((row) => {
+        if (row.BankId && row.BankName) {
+          bankData.push([row.BankId, row.BankName]);
         }
       });
-    } catch (error) {
-      connection.rollback(() => {
-        console.error('Transaction error:', error);
-        res.status(500).send('Error inserting data');
+    } else if (Array.isArray(req.body)) {
+      req.body.forEach((row) => {
+        if (row.BankId && row.BankName) {
+          bankData.push([row.BankId, row.BankName]);
+        }
       });
+    } else {
+      if (req.body.BankId && req.body.BankName) {
+        bankData.push([req.body.BankId, req.body.BankName]);
+      }
     }
-  });
+
+    const bankQuery = 'INSERT INTO bank (BankId, BankName) VALUES ?';
+
+    connection.beginTransaction(async (err) => {
+      if (err) {
+        console.error('Error starting transaction:', err);
+        return res.status(500).send('Error starting transaction');
+      }
+
+      try {
+        if (bankData.length > 0) {
+          await new Promise((resolve, reject) => {
+            connection.query(bankQuery, [bankData], (error, results) => {
+              if (error) return reject(error);
+              resolve(results);
+            });
+          });
+        }
+
+        connection.commit((err) => {
+          if (err) {
+            connection.rollback(() => {
+              console.error('Error committing transaction:', err);
+              return res.status(500).send('Error committing transaction');
+            });
+          } else {
+           
+            res.status(200).send('Bank data inserted successfully');
+          }
+        });
+      } catch (error) {
+        connection.rollback(() => {
+          console.error('Transaction error:', error);
+          res.status(500).send('Error inserting bank data');
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error inserting bank data:', error);
+    res.status(500).send('Error inserting bank data');
+  }
 });
+app.post('/api/insertBankIdCustomerIdData', async (req, res) => {
+  try {
+    let bankCustomerData = [];
+
+    if (req.body.data) {
+      req.body.data.forEach((row) => {
+        if (row.BankId && row.CustomerId) {
+          bankCustomerData.push([row.BankId, row.CustomerId]);
+        }
+      });
+    } else if (Array.isArray(req.body)) {
+      req.body.forEach((row) => {
+        if (row.BankId && row.CustomerId) {
+          bankCustomerData.push([row.BankId, row.CustomerId]);
+        }
+      });
+    } else {
+      if (req.body.BankId && req.body.CustomerId) {
+        bankCustomerData.push([req.body.BankId, req.body.CustomerId]);
+      }
+    }
+
+    const bankCustomerQuery = 'INSERT INTO bankid_customerid (BankId, CustomerId) VALUES ?';
+
+    connection.beginTransaction(async (err) => {
+      if (err) {
+        console.error('Error starting transaction:', err);
+        return res.status(500).send('Error starting transaction');
+      }
+
+      try {
+        if (bankCustomerData.length > 0) {
+          await new Promise((resolve, reject) => {
+            connection.query(bankCustomerQuery, [bankCustomerData], (error, results) => {
+              if (error) return reject(error);
+              resolve(results);
+            });
+          });
+        }
+
+        connection.commit((err) => {
+          if (err) {
+            connection.rollback(() => {
+              console.error('Error committing transaction:', err);
+              return res.status(500).send('Error committing transaction');
+            });
+          } else {
+    
+            res.status(200).send('Bank-customer data inserted successfully');
+          }
+        });
+      } catch (error) {
+        connection.rollback(() => {
+          console.error('Transaction error:', error);
+          res.status(500).send('Error inserting bank-customer data');
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error inserting bank-customer data:', error);
+    res.status(500).send('Error inserting bank-customer data');
+  }
+});
+app.post('/api/updateBankData', async (req, res) => {
+  try {
+    let bankData = [];
+
+    if (req.body.data) {
+      req.body.data.forEach((row) => {
+        if (row.BankId && row.BankName) {
+          bankData.push([row.BankName, row.BankId]);
+        }
+      });
+    } else if (Array.isArray(req.body)) {
+      req.body.forEach((row) => {
+        if (row.BankId && row.BankName) {
+          bankData.push([row.BankName, row.BankId]);
+        }
+      });
+    } else {
+      if (req.body.BankId && req.body.BankName) {
+        bankData.push([req.body.BankName, req.body.BankId]);
+      }
+    }
+
+    const bankQuery = 'UPDATE bank SET BankName = ? WHERE BankId = ?';  
+
+    connection.beginTransaction(async (err) => {
+      if (err) {
+        console.error('Error starting transaction:', err);
+        return res.status(500).send('Error starting transaction');
+      }
+
+      try {
+        for (const data of bankData) {
+          await new Promise((resolve, reject) => {
+            connection.query(bankQuery, data, (error, results) => {
+              if (error) return reject(error);
+              resolve(results);
+            });
+          });
+        }
+
+        connection.commit((err) => {
+          if (err) {
+            connection.rollback(() => {
+              console.error('Error committing transaction:', err);
+              return res.status(500).send('Error updating bank data');
+            });
+          } else {
+        
+            res.status(200).send('Bank data updated successfully');
+          }
+        });
+      } catch (error) {
+        connection.rollback(() => {
+          console.error('Transaction error:', error);
+          res.status(500).send('Error updating bank data');
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error updating bank data:', error);
+    res.status(500).send('Error updating bank data');
+  }
+});
+//atm upload
 app.post('/api/insertAtmData', (req, res) => {
   const { atmDetails } = req.body;
 
@@ -245,122 +458,239 @@ app.post('/api/insertAtmData', (req, res) => {
       console.error('Error inserting ATM data:', error);
       return res.status(500).json({ error: 'Failed to insert ATM data' });
     }
-
-    console.log('ATM data inserted successfully');
     res.status(200).json({ message: 'ATM data inserted successfully', insertedRows: results.affectedRows });
   });
 });
-app.post('/api/insertEmployeeData', (req, res) => {
-  const { employeeDetails } = req.body;
+app.post('/api/updateAtmData', (req, res) => {
+  const { AtmId, Country, State, City, Address, BranchCode, SiteId, Lho, SiteStatus, SiteType, FromDate, ToDate, RequestedBy, RequestFile, BankId, CustomerId } = req.body;
 
-  // Check if employeeDetails is an array and not empty
-  if (!Array.isArray(employeeDetails) || employeeDetails.length === 0) {
-    return res.status(400).json({ error: 'Invalid or empty employee details provided' });
+  if (!AtmId) {
+    return res.status(400).json({ error: 'AtmId is required' });
   }
 
-  // Validate each employee object in the array
-  const isValidEmployeeDetails = employeeDetails.every((employee) =>
-    employee &&
-    typeof employee === 'object' &&
-    'EmployeeId' in employee &&
-    'EmployeeName' in employee &&
-    'EmployeeRole' in employee &&
-    'EmployeeContactNumber' in employee &&
-    'TypeOfWork' in employee
-  );
+  const updateQuery = `
+    UPDATE atm SET 
+      Country = ?, State = ?, City = ?, Address = ?, BranchCode = ?, SiteId = ?, Lho = ?, 
+      SiteStatus = ?, SiteType = ?, FromDate = ?, ToDate = ?, RequestedBy = ?, RequestFile = ?, 
+      BankId = ?, CustomerId = ? 
+    WHERE AtmId = ?
+  `;
 
-  if (!isValidEmployeeDetails) {
-    return res.status(400).json({ error: 'Invalid employee details format' });
-  }
+  const values = [Country, State, City, Address, BranchCode, SiteId, Lho, SiteStatus, SiteType, FromDate, ToDate, RequestedBy, RequestFile, BankId, CustomerId, AtmId];
 
-  // Prepare the SQL INSERT statements
-  const employeeInsertSQL = 'INSERT INTO employee (EmployeeId, EmployeeName, EmployeeRole, EmployeeContactNumber, TypeOfWork) VALUES ?';
-  const atmEmployeeInsertSQL = 'INSERT INTO atm_employee (AtmId, EmployeeId) VALUES ?';
-
-  // Extract values from employee details to be inserted into the employee table
-  const employeeValues = employeeDetails.map((employee) => [
-    employee.EmployeeId,
-    employee.EmployeeName,
-    employee.EmployeeRole,
-    employee.EmployeeContactNumber,
-    employee.TypeOfWork,
-  ]);
-
-  // Extract ATM ID and Employee ID pair for insertion into atm_employee table
-  const atmId = employeeDetails[0].AtmId; // Assuming AtmId is a property of employeeDetails
-  const employeeId = employeeDetails[0].EmployeeId;
-  const atmEmployeeValues = [[atmId, employeeId]]; // Create a single pair [AtmId, EmployeeId]
-
-  // Start a database transaction
-  connection.beginTransaction((err) => {
-    if (err) {
-      console.error('Error starting transaction:', err);
-      return res.status(500).json({ error: 'Failed to start transaction' });
+  connection.query(updateQuery, values, (error, results) => {
+    if (error) {
+      console.error('Error updating ATM data:', error);
+      return res.status(500).json({ error: 'Failed to update ATM data' });
     }
 
-    // Check if EmployeeId already exists in the employee table
-    connection.query('SELECT EmployeeId FROM employee WHERE EmployeeId = ?', [employeeId], (selectErr, selectResults) => {
-      if (selectErr) {
-        console.error('Error checking existing EmployeeId:', selectErr);
-        connection.rollback(() => {
-          console.error('Transaction rolled back due to select error.');
-          return res.status(500).json({ error: 'Failed to check existing EmployeeId' });
-        });
+    res.status(200).json({ message: 'ATM data updated successfully' });
+  });
+});
+//employee upload
+app.post('/api/insertEmployeeData', async (req, res) => {
+  try {
+    let employeeData = [];
+
+    if (req.body.employeeDetails) {
+      req.body.employeeDetails.forEach((row) => {
+        if (row.EmployeeId && row.EmployeeName && row.EmployeeRole && row.EmployeeContactNumber && row.TypeOfWork) {
+          employeeData.push([row.EmployeeId, row.EmployeeName, row.EmployeeRole, row.EmployeeContactNumber, row.TypeOfWork]);
+        }
+      });
+    } else if (Array.isArray(req.body)) {
+      req.body.forEach((row) => {
+        if (row.EmployeeId && row.EmployeeName && row.EmployeeRole && row.EmployeeContactNumber && row.TypeOfWork) {
+          employeeData.push([row.EmployeeId, row.EmployeeName, row.EmployeeRole, row.EmployeeContactNumber, row.TypeOfWork]);
+        }
+      });
+    } else {
+      if (req.body.EmployeeId && req.body.EmployeeName && req.body.EmployeeRole && req.body.EmployeeContactNumber && req.body.TypeOfWork) {
+        employeeData.push([req.body.EmployeeId, req.body.EmployeeName, req.body.EmployeeRole, req.body.EmployeeContactNumber, req.body.TypeOfWork]);
+      }
+    }
+
+    const employeeQuery = 'INSERT INTO employee (EmployeeId, EmployeeName, EmployeeRole, EmployeeContactNumber, TypeOfWork) VALUES ?';
+
+    connection.beginTransaction(async (err) => {
+      if (err) {
+        console.error('Error starting transaction:', err);
+        return res.status(500).send('Error starting transaction');
       }
 
-      if (selectResults.length > 0) {
-        // EmployeeId already exists, skip inserting into employee table
-        console.log(`EmployeeId '${employeeId}' already exists in the database. Skipping insertion into employee table.`);
-        proceedWithAtmEmployeeInsert();
-      } else {
-        // Insert into employee table
-        connection.query(employeeInsertSQL, [employeeValues], (error, employeeResults) => {
-          if (error) {
-            console.error('Error inserting employee data:', error);
-            connection.rollback(() => {
-              console.error('Transaction rolled back due to employee insertion error.');
-              return res.status(500).json({ error: 'Failed to insert employee data' });
+      try {
+        if (employeeData.length > 0) {
+          await new Promise((resolve, reject) => {
+            connection.query(employeeQuery, [employeeData], (error, results) => {
+              if (error) return reject(error);
+              resolve(results);
             });
-          } else {
-            // Proceed to insert into atm_employee table
-            proceedWithAtmEmployeeInsert(employeeResults);
-          }
-        });
-      }
-    });
-
-    // Function to insert into atm_employee table
-    function proceedWithAtmEmployeeInsert(employeeResults) {
-      connection.query(atmEmployeeInsertSQL, [atmEmployeeValues], (atmEmployeeError, atmEmployeeResults) => {
-        if (atmEmployeeError) {
-          console.error('Error inserting atm_employee data:', atmEmployeeError);
-          connection.rollback(() => {
-            console.error('Transaction rolled back due to atm_employee insertion error.');
-            return res.status(500).json({ error: 'Failed to insert atm_employee data' });
           });
         }
 
-        // Commit the transaction if both queries are successful
-        connection.commit((commitError) => {
-          if (commitError) {
-            console.error('Error committing transaction:', commitError);
+        connection.commit((err) => {
+          if (err) {
             connection.rollback(() => {
-              console.error('Transaction rolled back due to commit error.');
-              return res.status(500).json({ error: 'Failed to commit transaction' });
+              console.error('Error committing transaction:', err);
+              return res.status(500).send('Error committing transaction');
             });
+          } else {
+       
+            res.status(200).send('Employee data inserted successfully');
           }
-
-          console.log('Transaction committed successfully');
-          res.status(200).json({
-            message: 'Employee and atm_employee data inserted successfully',
-            insertedEmployeeRows: employeeResults ? employeeResults.affectedRows : 0,
-            insertedAtmEmployeeRows: atmEmployeeResults.affectedRows,
-          });
         });
-      });
-    }
-  });
+      } catch (error) {
+        connection.rollback(() => {
+          console.error('Transaction error:', error);
+          res.status(500).send('Error inserting employee data');
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error inserting employee data:', error);
+    res.status(500).send('Error inserting employee data');
+  }
 });
+app.post('/api/insertEmployeeIdAtmIdData', async (req, res) => {
+  try {
+    let employeeAtmData = [];
+
+    if (req.body.data) {
+      req.body.data.forEach((row) => {
+        if (row.AtmId && row.EmployeeId) {
+          employeeAtmData.push([row.AtmId, row.EmployeeId]);
+        }
+      });
+    } else if (Array.isArray(req.body)) {
+      req.body.forEach((row) => {
+        if (row.AtmId && row.EmployeeId) {
+          employeeAtmData.push([row.AtmId, row.EmployeeId]);
+        }
+      });
+    } else {
+      if (req.body.AtmId && req.body.EmployeeId) {
+        employeeAtmData.push([req.body.AtmId, req.body.EmployeeId]);
+      }
+    }
+    console.log(employeeAtmData);
+
+    const employeeAtmQuery = 'INSERT INTO atm_employee (AtmId, EmployeeId) VALUES ?';
+
+    connection.beginTransaction(async (err) => {
+      if (err) {
+        console.error('Error starting transaction:', err);
+        return res.status(500).send('Error starting transaction');
+      }
+
+      try {
+        if (employeeAtmData.length > 0) {
+          await new Promise((resolve, reject) => {
+            connection.query(employeeAtmQuery, [employeeAtmData], (error, results) => {
+              if (error) return reject(error);
+              resolve(results);
+            });
+          });
+        }
+
+        connection.commit((err) => {
+          if (err) {
+            connection.rollback(() => {
+              console.error('Error committing transaction:', err);
+              return res.status(500).send('Error committing transaction');
+            });
+          } else {
+           
+            res.status(200).send('Employee-ATM data inserted successfully');
+          }
+        });
+      } catch (error) {
+        connection.rollback(() => {
+          console.error('Transaction error:', error);
+          res.status(500).send('Error inserting employee-ATM data');
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error inserting employee-ATM data:', error);
+    res.status(500).send('Error inserting employee-ATM data');
+  }
+});
+app.post('/api/updateEmployeeData', async (req, res) => {
+  try {
+    let employeeDetails = [];
+
+    if (req.body.employeeDetails) {
+      req.body.employeeDetails.forEach((employee) => {
+        if (employee.EmployeeId && employee.EmployeeName && employee.EmployeeRole && employee.EmployeeContactNumber && employee.TypeOfWork) {
+          employeeDetails.push(employee);
+        }
+      });
+    } else if (Array.isArray(req.body)) {
+      req.body.forEach((employee) => {
+        if (employee.EmployeeId && employee.EmployeeName && employee.EmployeeRole && employee.EmployeeContactNumber && employee.TypeOfWork) {
+          employeeDetails.push(employee);
+        }
+      });
+    } else {
+      if (req.body.EmployeeId && req.body.EmployeeName && req.body.EmployeeRole && req.body.EmployeeContactNumber && req.body.TypeOfWork) {
+        employeeDetails.push(req.body);
+      }
+    }
+
+    if (employeeDetails.length === 0) {
+      return res.status(400).json({ error: 'Invalid or empty employee details provided' });
+    }
+
+    const updateEmployeeSQL = 'UPDATE employee SET EmployeeName = ?, EmployeeRole = ?, EmployeeContactNumber = ?, TypeOfWork = ? WHERE EmployeeId = ?';
+
+    connection.beginTransaction(async (err) => {
+      if (err) {
+        console.error('Error starting transaction:', err);
+        return res.status(500).send('Error starting transaction');
+      }
+
+      try {
+        for (const employee of employeeDetails) {
+          const employeeUpdateValues = [
+            employee.EmployeeName,
+            employee.EmployeeRole,
+            employee.EmployeeContactNumber,
+            employee.TypeOfWork,
+            employee.EmployeeId
+          ];
+
+          await new Promise((resolve, reject) => {
+            connection.query(updateEmployeeSQL, employeeUpdateValues, (error, results) => {
+              if (error) return reject(error);
+              resolve(results);
+            });
+          });
+        }
+
+        connection.commit((err) => {
+          if (err) {
+            connection.rollback(() => {
+              console.error('Error committing transaction:', err);
+              return res.status(500).send('Error updating employee data');
+            });
+          } else {
+  
+            res.status(200).send('Employee data updated successfully');
+          }
+        });
+      } catch (error) {
+        connection.rollback(() => {
+          console.error('Transaction error:', error);
+          res.status(500).send('Error updating employee data');
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error updating employee data:', error);
+    res.status(500).send('Error updating employee data');
+  }
+});
+//services upload
 app.post('/api/insertServicesData', (req, res) => {
   const { servicesDetails } = req.body;
 
@@ -369,16 +699,17 @@ app.post('/api/insertServicesData', (req, res) => {
   }
 
   // Prepare the SQL INSERT statement
-  const sql = 'INSERT INTO services (ServiceId,ServiceType, TakeoverDate, HandoverDate, CostToClient, AtmId) VALUES ?';
+  const sql = 'INSERT INTO services (ServiceId, ServiceType, TakeoverDate, HandoverDate,PayOut, CostToClient, AtmId) VALUES ?';
 
-  // Extract values from ATM details to be inserted
-  const values = servicesDetails.map((service) => [
+  // Extract values from services details to be inserted
+  const values = servicesDetails.map(service => [
     service.ServiceId,
     service.ServiceType,
     service.TakeoverDate,
     service.HandoverDate,
+    service.PayOut,
     service.CostToClient,
-    service.AtmId,
+    service.AtmId
   ]);
 
   // Execute the SQL INSERT query
@@ -388,10 +719,39 @@ app.post('/api/insertServicesData', (req, res) => {
       return res.status(500).json({ error: 'Failed to insert services data' });
     }
 
-    console.log('Services data inserted successfully');
-    res.status(200).json({ message: 'services data inserted successfully', insertedRows: results.affectedRows });
+
+    res.status(200).json({ message: 'Services data inserted successfully', insertedRows: results.affectedRows });
   });
 });
+app.post('/api/updateServicesData', (req, res) => {
+  const { ServiceId, ServiceType, TakeoverDate, HandoverDate, PayOut, CostToClient, AtmId } = req.body;
+
+  if (!ServiceId) {
+    return res.status(400).json({ error: 'ServiceId is required' });
+  }
+
+  const updateQuery = `
+    UPDATE services SET 
+      ServiceType = ?, TakeoverDate = ?, HandoverDate = ?, PayOut=?, CostToClient = ?, AtmId = ? 
+    WHERE ServiceId = ?
+  `;
+
+  const values = [ServiceType, TakeoverDate, HandoverDate, PayOut, CostToClient, AtmId, ServiceId];
+
+  connection.query(updateQuery, values, (error, results) => {
+    if (error) {
+      console.error('Error updating services data:', error);
+      return res.status(500).json({ error: 'Failed to update services data' });
+    }
+
+    if (results.affectedRows === 0) {
+      return res.status(404).json({ message: 'ServiceId not found' });
+    }
+
+    res.status(200).json({ message: 'Services data updated successfully' });
+  });
+});
+//user 
 app.post('/api/register', async (req, res) => {
   const { name, username, password, phonenumber, access, session_intime, session_outtime } = req.body;
 
@@ -403,7 +763,6 @@ app.post('/api/register', async (req, res) => {
         console.error('Error inserting data into admin table:', error);
         res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
       } else {
-        console.log('Data inserted successfully into admin table');
         res.status(200).json({ success: true, message: 'Registration successful' });
       }
     });
@@ -429,8 +788,6 @@ app.post('/api/registeruser/:userId', async (req, res) => {
       if (results.affectedRows === 0) {
         return res.status(404).json({ success: false, error: 'User not found' });
       }
-
-      console.log('Data updated successfully in admin table');
       res.status(200).json({ success: true, message: 'User details updated successfully' });
     });
   } catch (error) {
@@ -456,7 +813,17 @@ app.post('/api/login', async (req, res) => {
         if (passwordMatch) {
           // If passwords match, generate JWT
           const token = jwt.sign({ username: user.username }, process.env.JWT_SECRET, { expiresIn: '1h' }); // Adjust expiry time as needed
-          res.status(200).json({ success: true, message: 'Login successful!', token: token });
+
+          // Update the session_time to the current timestamp
+          const updateQuery = 'UPDATE admin SET session_intime = NOW() WHERE username = ?';
+          connection.query(updateQuery, [username], (updateError) => {
+            if (updateError) {
+              console.error('Error updating session time:', updateError);
+              return res.status(500).json({ error: 'An unexpected error occurred.' });
+            }
+
+            res.status(200).json({ success: true, message: 'Login successful!', token: token });
+          });
         } else {
           // If passwords don't match, send error response
           res.status(401).json({ success: false, error: 'Invalid Password!' });
@@ -468,22 +835,39 @@ app.post('/api/login', async (req, res) => {
     }
   });
 });
-app.post('/api/logout', verifyToken, (req, res) => {
+app.post('/api/logout', (req, res) => {
   const { username } = req.body;
-  const updateQuery = 'UPDATE admin SET session_outtime = ? WHERE username = ?';
-  const session_outtime = new Date().toISOString(); // Set current time as session_outtime
-  connection.query(updateQuery, [session_outtime, username], (error, results) => {
+
+  const updateQuery = 'UPDATE admin SET session_outtime = NOW() WHERE username = ?';
+
+  connection.query(updateQuery, [username], (error, results) => {
     if (error) {
       console.error('Error updating session_outtime:', error);
       res.status(500).json({ error: 'An unexpected error occurred.' });
     } else {
       // Assuming successful update
-      console.log('Session Destroyed successfully');
+      console.log('Session destroyed successfully');
       res.status(200).json({ message: 'Logout successful' });
     }
   });
 });
+//invoice
+app.post('/api/insertInvoiceData', (req, res) => {
+  const { customerName, bankName, stateName, selectedService, fromDate, toDate } = req.body;
+  // Debugging: Log the values and types of customerName, bankName, and stateName
 
+  const insertInvoiceQuery = 'INSERT INTO invoices (clientName, bankName, stateName, selectedService, fromDate, toDate) VALUES (?, ?, ?, ?, ?, ?)';
+  const invoiceValues = [customerName, bankName, stateName, selectedService, fromDate, toDate];
+
+  connection.query(insertInvoiceQuery, invoiceValues, (err, result) => {
+    if (err) {
+      console.error('Error inserting invoice data:', err);
+      res.status(500).json({ error: 'Error inserting invoice data' });
+      return;
+    }
+      res.status(200).json({ message: 'Invoice data inserted successfully' });
+    });
+  });
 // Middleware to verify JWT
 function verifyToken(req, res, next) {
   const token = req.headers['authorization'];
@@ -500,7 +884,6 @@ function verifyToken(req, res, next) {
     next();
   });
 }
-
 app.get('/api/getfiledata', (req, res) => {
   connection.query(`SELECT * FROM uploadfiledata`, (error, results) => {
     if (error) {
@@ -553,24 +936,80 @@ app.get('/bank', (req, res) => {
     });
   }
 });
-app.get('/atm', (req, res) => {
-  const { Id } = req.query;
-  if (Id) {
-    connection.query(`SELECT * FROM atm WHERE CustomerId ='${Id}'`, (error, results) => {
-      if (error) {
-        console.error('Error fetching atms:', error);
-        res.status(500).json({ error: 'An error occurred while fetching atms' });
+app.get('/bank_customerdetails', (req, res) => {
+  const { bankId, customerId } = req.query; // Extract bankId and customerId from query parameters
+
+  // Base query to join bankid_customerid and banks tables
+  let query = `
+    SELECT bc.*, b.BankName, b.AtmCount
+    FROM bankid_customerid bc
+    JOIN bank b ON bc.BankId = b.BankId
+  `;
+
+  // Array to hold query parameters
+  const queryParams = [];
+
+  // Add conditions based on provided parameters
+  if (bankId || customerId) {
+    query += ' WHERE';
+    if (bankId) {
+      query += ' bc.BankId = ?';
+      queryParams.push(bankId);
+    }
+    if (bankId && customerId) {
+      query += ' AND';
+    }
+    if (customerId) {
+      query += ' bc.CustomerId = ?';
+      queryParams.push(customerId);
+    }
+  }
+
+  // Execute the query
+  connection.query(query, queryParams, (error, results) => {
+    if (error) {
+      console.error('Error selecting data from bankid_customerid and banks tables:', error);
+      res.status(500).json({ error: 'Error selecting data from bankid_customerid and banks tables' });
+    } else {
+      if (results.length > 0) {
+        res.status(200).json({ message: 'Data found in bankid_customerid and banks tables', data: results });
       } else {
-        res.json(results);
+        res.status(404).json({ message: 'No data found in bankid_customerid and banks tables', data: results });
       }
-    });
+    }
+  });
+});
+
+app.get('/atm', (req, res) => {
+  const { AtmId, CustomerId , BankId } = req.query;
+
+  let query = 'SELECT * FROM atm';
+  const queryParams = [];
+
+  if (AtmId || CustomerId) {
+    query += ' WHERE';
+    if (AtmId) {
+      query += ' AtmId = ?';
+      queryParams.push(AtmId);
+    }
+    if (CustomerId) {
+      query += ' CustomerId = ?';
+      queryParams.push(CustomerId);
+    }
+    if (BankId) {
+      query += ' BankId = ?';
+      queryParams.push(BankId);
+    }
   }
-  else {
-    connection.query('SELECT * FROM atm', (error, results) => {
-      if (error) throw error;
+
+  connection.query(query, queryParams, (error, results) => {
+    if (error) {
+      console.error('Error fetching ATMs:', error);
+      res.status(500).json({ error: 'An error occurred while fetching ATMs' });
+    } else {
       res.json(results);
-    });
-  }
+    }
+  });
 });
 app.get('/atmregion', (req, res) => {
   connection.query('SELECT AtmId,RegionId, RegionName, GstStateCode FROM atmregion', (error, results) => {
@@ -579,27 +1018,86 @@ app.get('/atmregion', (req, res) => {
   });
 });
 app.get('/services', (req, res) => {
-  connection.query('SELECT * FROM services', (error, results) => {
-    if (error) throw error;
-    res.json(results);
+  const { ServiceId, AtmId } = req.query;
+
+  let query = 'SELECT * FROM services';
+  const queryParams = [];
+
+  if (ServiceId || AtmId) {
+    query += ' WHERE';
+    if (ServiceId) {
+      query += ' ServiceId = ? ';
+      queryParams.push(ServiceId);
+    }
+    if (ServiceId && AtmId) {
+      query += ' AND ';
+    }
+    if (AtmId) {
+      query += ' AtmId = ? ';
+      queryParams.push(AtmId);
+    }
+  }
+
+  connection.query(query, queryParams, (error, results) => {
+    if (error) {
+      console.error('Error fetching services:', error);
+      res.status(500).json({ error: 'An error occurred while fetching services' });
+    } else {
+      res.json(results);
+    }
   });
 });
 app.get('/employee', (req, res) => {
-  connection.query('SELECT * FROM employee', (error, results) => {
-    if (error) throw error;
-    res.json(results);
+  const { EmployeeId } = req.query;
+
+  let query = 'SELECT * FROM employee';
+  const queryParams = [];
+
+  if (EmployeeId) {
+    query += ' WHERE EmployeeId = ?';
+    queryParams.push(EmployeeId);
+  }
+
+  connection.query(query, queryParams, (error, results) => {
+    if (error) {
+      console.error('Error fetching employees:', error);
+      res.status(500).json({ error: 'An error occurred while fetching employees' });
+    } else {
+      res.json(results);
+    }
   });
 });
 app.get('/atm_employeedetails', (req, res) => {
-  // Query to fetch ATM employee details
-  const query = `
-    SELECT ae.AtmId,e.EmployeeId, e.EmployeeName, e.EmployeeRole, e.EmployeeContactNumber, e.TypeOfWork
+  const { AtmId, EmployeeId } = req.query;
+
+  // Base query to fetch ATM employee details
+  let query = `
+    SELECT ae.AtmId, e.EmployeeId, e.EmployeeName, e.EmployeeRole, e.EmployeeContactNumber, e.TypeOfWork
     FROM atm_employee ae
     JOIN employee e ON ae.EmployeeId = e.EmployeeId
   `;
 
+  // Array to hold query parameters
+  const queryParams = [];
+
+  // Add conditions based on provided parameters
+  if (AtmId || EmployeeId) {
+    query += ' WHERE';
+    if (AtmId) {
+      query += ' ae.AtmId = ?';
+      queryParams.push(AtmId);
+    }
+    if (AtmId && EmployeeId) {
+      query += ' AND';
+    }
+    if (EmployeeId) {
+      query += ' e.EmployeeId = ?';
+      queryParams.push(EmployeeId);
+    }
+  }
+
   // Use the connection pool to execute the query
-  connection.query(query, (error, results) => {
+  connection.query(query, queryParams, (error, results) => {
     if (error) {
       console.error('Error fetching ATM employee details:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -730,8 +1228,6 @@ app.get('/api/cities', (req, res) => {
 
   res.json(cities.map(city => city.name));
 });
-
-
 // Function to insert data with foreign key constraint check
 async function insertWithForeignKeyCheck(connection, query, data) {
   return new Promise((resolve, reject) => {
@@ -746,12 +1242,124 @@ async function insertWithForeignKeyCheck(connection, query, data) {
           reject(error); // Reject promise for other types of errors
         }
       } else {
-        console.log('Data inserted successfully');
         resolve();
       }
     });
   });
 }
+// to get data from database updated by nitish
+app.get('/api/invoices', (req, res) => {
+  const { customerName, bankName, stateName, selectedService, fromDate, toDate } = req.query;
+
+  let fetchQuery = 'SELECT * FROM invoices WHERE 1=1'; // Initial query
+  const queryParams = [];
+
+  // Append conditions to the query based on provided parameters
+  if (customerName) {
+    fetchQuery += ' AND clientName = ?';
+    queryParams.push(customerName);
+  }
+  if (bankName) {
+    fetchQuery += ' AND bankName = ?';
+    queryParams.push(bankName);
+  }
+  if (stateName) {
+    fetchQuery += ' AND stateName = ?';
+    queryParams.push(stateName);
+  }
+  if (selectedService) {
+    fetchQuery += ' AND selectedService = ?';
+    queryParams.push(selectedService);
+  }
+  if (fromDate) {
+    fetchQuery += ' AND fromDate >= ?';
+    queryParams.push(fromDate);
+  }
+  if (toDate) {
+    fetchQuery += ' AND toDate <= ?';
+    queryParams.push(toDate);
+  }
+
+  connection.query(fetchQuery, queryParams, (err, results) => {
+    if (err) {
+      console.error('Error fetching invoices:', err);
+      res.status(500).json({ error: 'Error fetching invoices' });
+      return;
+    }
+    res.status(200).json(results);
+  });
+});
+app.get('/api/totalcost', (req, res) => {
+  const query = 'SELECT SUM(CostToClient) AS total_cost FROM services';
+  connection.query(query, (error, results) => {
+    if (error) {
+      console.error('Error executing query:', error);
+      res.status(500).send('Server Error');
+      return;
+    }
+    res.json(results[0]);
+  });
+});
+// Define endpoint for fetching monthly cost updated by Nitish
+app.get('/api/monthly-cost', (req, res) => {
+  const query = 'SELECT MONTH(TakeoverDate) AS Month, SUM(CostToClient) AS TotalCost FROM services GROUP BY MONTH(TakeoverDate)';
+  connection.query(query, (error, results) => {
+    if (error) {
+      console.error('Error fetching monthly cost:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+      return;
+    }
+    res.json(results);
+  });
+});
+// Define endpoint for fetching yearly cost updated by nitish
+app.get('/api/yearly-cost', (req, res) => {
+  const query = 'SELECT YEAR(TakeoverDate) AS Year, SUM(CostToClient) AS TotalCost FROM services GROUP BY YEAR(TakeoverDate)';
+  connection.query(query, (error, results) => {
+    if (error) {
+      console.error('Error fetching yearly cost:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+      return;
+    }
+    res.json(results);
+  });
+});
+app.get('/api/customer/count', (req, res) => {
+  // Perform a query to fetch the count from your database updated by nitish
+  connection.query('SELECT COUNT(CustomerId) as customerCount FROM customer', (error, results) => {
+    if (error) {
+      console.error('Error fetching customer count:', error);
+      res.status(500).json({ error: 'An error occurred while fetching customer count' });
+    } else {
+      // Return the count as JSON
+      res.json(results[0]);
+    }
+  });
+});
+// Fetch monthly sales data updated by nitish
+app.get('/api/costtoclient/monthly', (req, res) => {
+  const query = 'SELECT MONTH(TakeoverDate) AS Month, SUM(CostToClient) AS TotalCost FROM services GROUP BY MONTH(TakeoverDate)'; // Adjust query based on your table structure
+  connection.query(query, (error, results) => {
+    if (error) {
+      console.error('Error fetching monthly sales data:', error);
+      res.status(500).json({ error: 'Error fetching monthly sales data' });
+    } else {
+      res.json(results);
+    }
+  });
+});
+// Fetch yearly sales data updated by nitish
+app.get('/api/costtoclient/yearly', (req, res) => {
+  const query = 'SELECT YEAR(TakeoverDate) AS Year, SUM(CostToClient) AS TotalCost FROM services GROUP BY YEAR(TakeoverDate)'; // Adjust query based on your table structure
+  connection.query(query, (error, results) => {
+    if (error) {
+      console.error('Error fetching yearly sales data:', error);
+      res.status(500).json({ error: 'Error fetching yearly sales data' });
+    } else {
+      res.json(results);
+    }
+  });
+});
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
