@@ -13,6 +13,8 @@ import BankDetailsTable from './Components/BankDetailsTable';
 import AtmDetailsTable from './Components/AtmDetailsTable';
 import ServicesForm from './Form/ServicesForm';
 import AtmForm from './Form/AtmForm';
+import ReportGeneration from './Components/ReportGeneration';
+import  TestUpload from './Components/test_upload';
 
 const isAuthenticated = () => {
   const token = localStorage.getItem('token');
@@ -70,12 +72,20 @@ const App = () => {
           element={isAuthenticated() ? <Layout><BankDetailsTable /></Layout> : <Navigate to="/Login" replace />}
         />
             <Route
-          path="/AtmDetails/:bankId"
+          path="/AtmDetails/:bankId/:customerId"
           element={isAuthenticated() ? <Layout><AtmDetailsTable /></Layout> : <Navigate to="/Login" replace />}
         />
           <Route
           path="/AtmDetailsEdit/:atmId"
           element={isAuthenticated() ? <Layout><AtmForm /></Layout> : <Navigate to="/Login" replace />}
+        />
+        <Route
+          path="/GenerateReport"
+          element={isAuthenticated() ? <Layout><ReportGeneration /></Layout> : <Navigate to="/Login" replace />}
+        />
+          <Route
+          path="/TestUpload"
+          element={isAuthenticated() ? <Layout><TestUpload /></Layout> : <Navigate to="/Login" replace />}
         />
         <Route
           path="/Logout"

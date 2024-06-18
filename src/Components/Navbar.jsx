@@ -19,12 +19,21 @@ const Navbar = () => {
     };
     const handleSignOut = async () => {
         try {
-            await fetch('http://localhost:5000/api/logout', {
+            const username = userId;
+
+            const response = await fetch('http://localhost:5000/api/logout', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': token,
                 },
+                body: JSON.stringify({ username })
             });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
             localStorage.removeItem('token');
             navigate('/Login');
         } catch (error) {
@@ -57,7 +66,7 @@ const Navbar = () => {
                         <div className=" md:flex items-center justify-end rtl:justify-end">
                             <button type="button" className="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600" id="user-menu-button" aria-expanded={userMenuOpen} onClick={toggleUserMenu}>
                                 <span className="sr-only">Open user menu</span>
-                                <div className="w-8 h-8 rounded-full profile-image" src="" alt="user photo"><span className="initials">{userId.charAt(0)}</span></div>
+                                <div className="w-8 h-8 rounded-full profile-image" src="" alt="user photo"><span className="initials">{userId.charAt(0) + "  " + userId.charAt(1)}</span></div>
                             </button>
                             {userMenuOpen && (
                                 <div className="z-50 my-4 text-base bg-white divide-y divide-gray-100 rounded-lg shadow dark:bg-gray-700 dark:divide-gray-600 absolute right-2 top-full mt-1" id="user-dropdown">

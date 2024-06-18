@@ -12,6 +12,8 @@ import Breadcrumb from "./Breadcrumb";
 
 const AtmDetailsTable = () => {
     const { bankId } = useParams();
+    const { customerId } = useParams();
+
     const navigate = useNavigate();
     const [data, setData] = useState([]);
 
@@ -24,7 +26,7 @@ const AtmDetailsTable = () => {
                     axios.get('http://localhost:5000/atm')
                 ]);
                 const atms = atmResponse.data;
-                const filteredAtms = atms.filter(atm => atm.BankId === bankId);
+                const filteredAtms = atms.filter(atm => atm.BankId === bankId && atm.CustomerId === customerId);
                 setData(filteredAtms);
                 const servicesResponse = await axios.get('http://localhost:5000/services');
                 const servicesData = servicesResponse.data;
@@ -174,7 +176,7 @@ const AtmDetailsTable = () => {
         <div className='container-form'>
             <div className="customer-details">
                 <div className="mb-1 w-full">
-                    <div className="mb-4">     <Breadcrumb items={breadcrumbData.Atms(bankId)} /> </div>
+                    <div className="mb-4">     <Breadcrumb items={breadcrumbData.Atms(bankId , customerId)} /> </div>
                     <div className="sm:flex">
                         <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Atms </h1>
                         <div className="flex items-center space-x-2 sm:space-x-3 ml-auto">

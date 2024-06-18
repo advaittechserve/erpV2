@@ -19,9 +19,10 @@ const BankDetailsTable = () => {
         const fetchData = async () => {
             try {
                 const [ bankResponse] = await Promise.all([
-                    axios.get('http://localhost:5000/bank_atmdetyails')                  
+                    axios.get('http://localhost:5000/bank_atmdetails')                  
                 ]);
                 const banks = bankResponse.data;
+                
                 const mergedData = banks.map(bank => {
                     if (bank.CustomerId === customerId) {
                         return {
@@ -33,6 +34,7 @@ const BankDetailsTable = () => {
                 }).filter(bank => bank !== null); 
 
                 setData(mergedData);
+                console.log(mergedData);
 
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -45,8 +47,6 @@ const BankDetailsTable = () => {
     const columns = [
         { name: "BankId", label: "Bank ID" },
         { name: "BankName", label: "Bank Name" },
-        { name: "AtmCount", label: "Atm Count" },
-        { name: "Field", label: "Field" },
         {
             name: "View",
             label: "View",
@@ -55,7 +55,7 @@ const BankDetailsTable = () => {
                     <button
                         onClick={() => {
                             const bankId = tableMeta.rowData[0]; // Get CustomerId from the row data
-                            navigate(`/AtmDetails/${bankId}`); // Navigate to /bankdetails with the specific CustomerId
+                            navigate(`/AtmDetails/${bankId}/${customerId}`); // Navigate to /bankdetails with the specific CustomerId
                         }}
                         className="add-btn"
                     >
