@@ -468,228 +468,109 @@ app.post('/api/updateAtmData', (req, res) => {
     return res.status(400).json({ error: 'AtmId is required' });
   }
 
-  const updateQuery = `
-    UPDATE atm SET 
-      Country = ?, State = ?, City = ?, Address = ?, BranchCode = ?, SiteId = ?, Lho = ?, 
-      SiteStatus = ?, SiteType = ?, FromDate = ?, ToDate = ?, RequestedBy = ?, RequestFile = ?, 
-      BankId = ?, CustomerId = ? 
-    WHERE AtmId = ?
-  `;
+  // Validate each employee object in the array
+  const isValidEmployeeDetails = employeeDetails.every((employee) =>
+    employee &&
+    typeof employee === 'object' &&
+    'EmployeeId' in employee &&
+    'EmployeeName' in employee &&
+    'EmployeeRole' in employee &&
+    'EmployeeContactNumber' in employee &&
+    'TypeOfWork' in employee
+  );
 
-  const values = [Country, State, City, Address, BranchCode, SiteId, Lho, SiteStatus, SiteType, FromDate, ToDate, RequestedBy, RequestFile, BankId, CustomerId, AtmId];
+  if (!isValidEmployeeDetails) {
+    return res.status(400).json({ error: 'Invalid employee details format' });
+  }
 
-  connection.query(updateQuery, values, (error, results) => {
-    if (error) {
-      console.error('Error updating ATM data:', error);
-      return res.status(500).json({ error: 'Failed to update ATM data' });
+  // Prepare the SQL INSERT statements
+  const employeeInsertSQL = 'INSERT INTO employee (EmployeeId, EmployeeName, EmployeeRole, EmployeeContactNumber, TypeOfWork) VALUES ?';
+  const atmEmployeeInsertSQL = 'INSERT INTO atm_employee (AtmId, EmployeeId) VALUES ?';
+
+  // Extract values from employee details to be inserted into the employee table
+  const employeeValues = employeeDetails.map((employee) => [
+    employee.EmployeeId,
+    employee.EmployeeName,
+    employee.EmployeeRole,
+    employee.EmployeeContactNumber,
+    employee.TypeOfWork,
+  ]);
+
+  // Extract ATM ID and Employee ID pair for insertion into atm_employee table
+  const atmId = employeeDetails[0].AtmId; // Assuming AtmId is a property of employeeDetails
+  const employeeId = employeeDetails[0].EmployeeId;
+  const atmEmployeeValues = [[atmId, employeeId]]; // Create a single pair [AtmId, EmployeeId]
+
+  // Start a database transaction
+  connection.beginTransaction((err) => {
+    if (err) {
+      console.error('Error starting transaction:', err);
+      return res.status(500).json({ error: 'Failed to start transaction' });
     }
 
-    res.status(200).json({ message: 'ATM data updated successfully' });
+    // Check if EmployeeId already exists in the employee table
+    connection.query('SELECT EmployeeId FROM employee WHERE EmployeeId = ?', [employeeId], (selectErr, selectResults) => {
+      if (selectErr) {
+        console.error('Error checking existing EmployeeId:', selectErr);
+        connection.rollback(() => {
+          console.error('Transaction rolled back due to select error.');
+          return res.status(500).json({ error: 'Failed to check existing EmployeeId' });
+        });
+      }
+
+      if (selectResults.length > 0) {
+        // EmployeeId already exists, skip inserting into employee table
+        console.log(`EmployeeId '${employeeId}' already exists in the database. Skipping insertion into employee table.`);
+        proceedWithAtmEmployeeInsert();
+      } else {
+        // Insert into employee table
+        connection.query(employeeInsertSQL, [employeeValues], (error, employeeResults) => {
+          if (error) {
+            console.error('Error inserting employee data:', error);
+            connection.rollback(() => {
+              console.error('Transaction rolled back due to employee insertion error.');
+              return res.status(500).json({ error: 'Failed to insert employee data' });
+            });
+          } else {
+            // Proceed to insert into atm_employee table
+            proceedWithAtmEmployeeInsert(employeeResults);
+          }
+        });
+      }
+    });
+
+    // Function to insert into atm_employee table
+    function proceedWithAtmEmployeeInsert(employeeResults) {
+      connection.query(atmEmployeeInsertSQL, [atmEmployeeValues], (atmEmployeeError, atmEmployeeResults) => {
+        if (atmEmployeeError) {
+          console.error('Error inserting atm_employee data:', atmEmployeeError);
+          connection.rollback(() => {
+            console.error('Transaction rolled back due to atm_employee insertion error.');
+            return res.status(500).json({ error: 'Failed to insert atm_employee data' });
+          });
+        }
+
+        // Commit the transaction if both queries are successful
+        connection.commit((commitError) => {
+          if (commitError) {
+            console.error('Error committing transaction:', commitError);
+            connection.rollback(() => {
+              console.error('Transaction rolled back due to commit error.');
+              return res.status(500).json({ error: 'Failed to commit transaction' });
+            });
+          }
+
+          console.log('Transaction committed successfully');
+          res.status(200).json({
+            message: 'Employee and atm_employee data inserted successfully',
+            insertedEmployeeRows: employeeResults ? employeeResults.affectedRows : 0,
+            insertedAtmEmployeeRows: atmEmployeeResults.affectedRows,
+          });
+        });
+      });
+    }
   });
 });
-//employee upload
-app.post('/api/insertEmployeeData', async (req, res) => {
-  try {
-    let employeeData = [];
-
-    if (req.body.employeeDetails) {
-      req.body.employeeDetails.forEach((row) => {
-        if (row.EmployeeId && row.EmployeeName && row.EmployeeRole && row.EmployeeContactNumber && row.TypeOfWork) {
-          employeeData.push([row.EmployeeId, row.EmployeeName, row.EmployeeRole, row.EmployeeContactNumber, row.TypeOfWork]);
-        }
-      });
-    } else if (Array.isArray(req.body)) {
-      req.body.forEach((row) => {
-        if (row.EmployeeId && row.EmployeeName && row.EmployeeRole && row.EmployeeContactNumber && row.TypeOfWork) {
-          employeeData.push([row.EmployeeId, row.EmployeeName, row.EmployeeRole, row.EmployeeContactNumber, row.TypeOfWork]);
-        }
-      });
-    } else {
-      if (req.body.EmployeeId && req.body.EmployeeName && req.body.EmployeeRole && req.body.EmployeeContactNumber && req.body.TypeOfWork) {
-        employeeData.push([req.body.EmployeeId, req.body.EmployeeName, req.body.EmployeeRole, req.body.EmployeeContactNumber, req.body.TypeOfWork]);
-      }
-    }
-
-    const employeeQuery = 'INSERT INTO employee (EmployeeId, EmployeeName, EmployeeRole, EmployeeContactNumber, TypeOfWork) VALUES ?';
-
-    connection.beginTransaction(async (err) => {
-      if (err) {
-        console.error('Error starting transaction:', err);
-        return res.status(500).send('Error starting transaction');
-      }
-
-      try {
-        if (employeeData.length > 0) {
-          await new Promise((resolve, reject) => {
-            connection.query(employeeQuery, [employeeData], (error, results) => {
-              if (error) return reject(error);
-              resolve(results);
-            });
-          });
-        }
-
-        connection.commit((err) => {
-          if (err) {
-            connection.rollback(() => {
-              console.error('Error committing transaction:', err);
-              return res.status(500).send('Error committing transaction');
-            });
-          } else {
-       
-            res.status(200).send('Employee data inserted successfully');
-          }
-        });
-      } catch (error) {
-        connection.rollback(() => {
-          console.error('Transaction error:', error);
-          res.status(500).send('Error inserting employee data');
-        });
-      }
-    });
-  } catch (error) {
-    console.error('Error inserting employee data:', error);
-    res.status(500).send('Error inserting employee data');
-  }
-});
-app.post('/api/insertEmployeeIdAtmIdData', async (req, res) => {
-  try {
-    let employeeAtmData = [];
-
-    if (req.body.data) {
-      req.body.data.forEach((row) => {
-        if (row.AtmId && row.EmployeeId) {
-          employeeAtmData.push([row.AtmId, row.EmployeeId]);
-        }
-      });
-    } else if (Array.isArray(req.body)) {
-      req.body.forEach((row) => {
-        if (row.AtmId && row.EmployeeId) {
-          employeeAtmData.push([row.AtmId, row.EmployeeId]);
-        }
-      });
-    } else {
-      if (req.body.AtmId && req.body.EmployeeId) {
-        employeeAtmData.push([req.body.AtmId, req.body.EmployeeId]);
-      }
-    }
-
-    const employeeAtmQuery = 'INSERT INTO atm_employee (AtmId, EmployeeId) VALUES ?';
-
-    connection.beginTransaction(async (err) => {
-      if (err) {
-        console.error('Error starting transaction:', err);
-        return res.status(500).send('Error starting transaction');
-      }
-
-      try {
-        if (employeeAtmData.length > 0) {
-          await new Promise((resolve, reject) => {
-            connection.query(employeeAtmQuery, [employeeAtmData], (error, results) => {
-              if (error) return reject(error);
-              resolve(results);
-            });
-          });
-        }
-
-        connection.commit((err) => {
-          if (err) {
-            connection.rollback(() => {
-              console.error('Error committing transaction:', err);
-              return res.status(500).send('Error committing transaction');
-            });
-          } else {
-           
-            res.status(200).send('Employee-ATM data inserted successfully');
-          }
-        });
-      } catch (error) {
-        connection.rollback(() => {
-          console.error('Transaction error:', error);
-          res.status(500).send('Error inserting employee-ATM data');
-        });
-      }
-    });
-  } catch (error) {
-    console.error('Error inserting employee-ATM data:', error);
-    res.status(500).send('Error inserting employee-ATM data');
-  }
-});
-app.post('/api/updateEmployeeData', async (req, res) => {
-  try {
-    let employeeDetails = [];
-
-    if (req.body.employeeDetails) {
-      req.body.employeeDetails.forEach((employee) => {
-        if (employee.EmployeeId && employee.EmployeeName && employee.EmployeeRole && employee.EmployeeContactNumber && employee.TypeOfWork) {
-          employeeDetails.push(employee);
-        }
-      });
-    } else if (Array.isArray(req.body)) {
-      req.body.forEach((employee) => {
-        if (employee.EmployeeId && employee.EmployeeName && employee.EmployeeRole && employee.EmployeeContactNumber && employee.TypeOfWork) {
-          employeeDetails.push(employee);
-        }
-      });
-    } else {
-      if (req.body.EmployeeId && req.body.EmployeeName && req.body.EmployeeRole && req.body.EmployeeContactNumber && req.body.TypeOfWork) {
-        employeeDetails.push(req.body);
-      }
-    }
-
-    if (employeeDetails.length === 0) {
-      return res.status(400).json({ error: 'Invalid or empty employee details provided' });
-    }
-
-    const updateEmployeeSQL = 'UPDATE employee SET EmployeeName = ?, EmployeeRole = ?, EmployeeContactNumber = ?, TypeOfWork = ? WHERE EmployeeId = ?';
-
-    connection.beginTransaction(async (err) => {
-      if (err) {
-        console.error('Error starting transaction:', err);
-        return res.status(500).send('Error starting transaction');
-      }
-
-      try {
-        for (const employee of employeeDetails) {
-          const employeeUpdateValues = [
-            employee.EmployeeName,
-            employee.EmployeeRole,
-            employee.EmployeeContactNumber,
-            employee.TypeOfWork,
-            employee.EmployeeId
-          ];
-
-          await new Promise((resolve, reject) => {
-            connection.query(updateEmployeeSQL, employeeUpdateValues, (error, results) => {
-              if (error) return reject(error);
-              resolve(results);
-            });
-          });
-        }
-
-        connection.commit((err) => {
-          if (err) {
-            connection.rollback(() => {
-              console.error('Error committing transaction:', err);
-              return res.status(500).send('Error updating employee data');
-            });
-          } else {
-  
-            res.status(200).send('Employee data updated successfully');
-          }
-        });
-      } catch (error) {
-        connection.rollback(() => {
-          console.error('Transaction error:', error);
-          res.status(500).send('Error updating employee data');
-        });
-      }
-    });
-  } catch (error) {
-    console.error('Error updating employee data:', error);
-    res.status(500).send('Error updating employee data');
-  }
-});
-//services upload
 app.post('/api/insertServicesData', (req, res) => {
   const { servicesDetails } = req.body;
 
