@@ -572,7 +572,6 @@ app.post('/api/insertEmployeeIdAtmIdData', async (req, res) => {
         employeeAtmData.push([req.body.AtmId, req.body.EmployeeId]);
       }
     }
-    console.log(employeeAtmData);
 
     const employeeAtmQuery = 'INSERT INTO atm_employee (AtmId, EmployeeId) VALUES ?';
 
