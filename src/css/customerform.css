@@ -264,3 +264,64 @@
   transform: translateX(25%);
   left: auto;
 }
+@font-face {
+  font-family: 'Jacquard'; /* Replace with actual font family name */
+  src: url('../fonts/Jacquard24-Regular.ttf') format('truetype'); /* Adjust path and format */
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Open Sans'; /* Replace with actual font family name */
+  src: url('../fonts/OpenSans-Regular.ttf') format('truetype'); /* Adjust path and format */
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+/* ChartStyles.css */
+
+.chartContainer {
+  display: flex;
+  justify-content: space-around; /* Space out the charts evenly */
+  align-items: center; /* Align items vertically center */
+  flex-wrap: wrap; /* Allow wrapping if the container is too narrow */
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.lineChart, .pieChart {
+  width: 45%; /* Adjust the width as needed */
+  height: 400px; /* Set a fixed height for both charts */
+  max-width: 600px; /* Adjust the maximum width as needed */
+  margin-top: 20px; /* Add some margin for spacing */
+  padding: 20px; /* Add some padding around the chart */
+  background-color: #f9f9f9; /* Light background color */
+  border-radius: 10px; /* Rounded corners */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow effect */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .chartContainer {
+    flex-direction: column; /* Stack charts vertically on small screens */
+    align-items: center;
+  }
+
+  .lineChart, .pieChart {
+    width: 100%; /* Full width on small screens */
+    height: auto; /* Adjust height for responsiveness */
+  }
+
+
+}
+
+@media (max-width: 480px) {
+  .lineChart, .pieChart {
+    width: 100%; /* Full width on extra small screens */
+    padding: 10px; /* Reduce padding for extra small screens */
+  }
+}
+

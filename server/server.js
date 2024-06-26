@@ -8,16 +8,22 @@ require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql');
 const cors = require('cors');
+const http = require('http');
 const bcrypt = require('bcryptjs');
+const socketIo = require('socket.io');
+const { promisify } = require('util');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
 const Papa = require('papaparse');
 const XLSX = require('xlsx');
 const app = express();
+const unlinkAsync = promisify(fs.unlink);
 const port = 5000;
 process.env.TZ = 'Asia/Kolkata'; // Set the server timezone to IST
 const countryStateCity = require("country-state-city");
+const server = http.createServer(app);
+const io = socketIo(server);
 
 const currentDate = new Date();
 currentDate.toLocaleString('en-IN', {
@@ -56,6 +62,10 @@ const upload = multer({ storage: storage });
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
+app.use((req, res, next) => {
+  req.app.io = io;
+  next();
+});
 //log upload
 app.post('/api/newUploadLog', (req, res) => {
   const timestamp = new Date().toISOString().replace(/:/g, '-');
@@ -83,6 +93,66 @@ app.post('/api/log', (req, res) => {
     res.sendStatus(200);
   });
 });
+// const asyncForEach = async (array, callback) => {
+//   for (let index = 0; index < array.length; index++) {
+//     await callback(array[index], index, array);
+//   }
+// };
+
+// app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
+//   try {
+//     const file = req.file;
+//     if (!file) {
+//       return res.status(400).json({ message: 'No file uploaded' });
+//     }
+
+//     const workbook = XLSX.readFile(file.path); // Read Excel file
+//     const sheetName = workbook.SheetNames[0]; // Get the first sheet name
+//     const worksheet = workbook.Sheets[sheetName]; // Get the worksheet
+//     const jsonData = XLSX.utils.sheet_to_json(worksheet); // Convert sheet to JSON
+    
+//     const sequentialFunctions = [
+//       uploadCustomerData,
+//       uploadBankData,
+//       uploadAtmData
+//     ];
+
+//     const concurrentFunctions = [
+//       uploadEmployeeData,
+//       uploadServiceData
+//     ];
+
+//     let progress = 0;
+//     const totalFunctions = sequentialFunctions.length + concurrentFunctions.length;
+
+//     // Process sequential functions using asyncForEach
+//     await asyncForEach(sequentialFunctions, async (uploadFunction) => {
+//       await uploadFunction(jsonData);
+//       progress++;
+//       const percentCompleted = Math.round((progress * 100) / totalFunctions);
+//       // Emit progress to client
+//       req.app.io.emit('uploadProgress', percentCompleted);
+//     });
+
+//     // Process concurrent functions using Promise.all
+//     await Promise.all(concurrentFunctions.map(async (uploadFunction) => {
+//       await uploadFunction(jsonData);
+//       progress++;
+//       const percentCompleted = Math.round((progress * 100) / totalFunctions);
+//       // Emit progress to client
+//       req.app.io.emit('uploadProgress', percentCompleted);
+//     }));
+
+//     // Cleanup: Delete the file after processing
+//     await unlinkAsync(file.path);
+
+//     return res.json({ message: 'File uploaded successfully' });
+//   } catch (error) {
+//     console.error('Error uploading file:', error);
+//     return res.status(500).json({ message: 'Error uploading file' });
+//   }
+// });
+
 app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
   try {
     const file = req.file;
@@ -152,8 +222,6 @@ app.post('/api/insertCustomerData', async (req, res) => {
         row.CustomerId,
         row.CustomerName,
         row.CustomerSiteStatus, // Use CustomerStatus instead of CustomerSiteStatus to match the frontend
-        row.StartDate,
-        row.EndDate
       ]);
     } else if (Array.isArray(req.body)) {
       // If the request body is already an array, use it as is
@@ -161,8 +229,6 @@ app.post('/api/insertCustomerData', async (req, res) => {
         row.CustomerId,
         row.CustomerName,
         row.CustomerSiteStatus,
-        row.StartDate,
-        row.EndDate
       ]);
     } else {
       // Otherwise, map the request body to the desired format
@@ -171,13 +237,11 @@ app.post('/api/insertCustomerData', async (req, res) => {
           req.body.CustomerId,
           req.body.CustomerName,
           req.body.CustomerSiteStatus,
-          req.body.StartDate,
-          req.body.EndDate
         ]
       ];
     }
 
-    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus, StartDate, EndDate) VALUES ?';
+    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus) VALUES ?';
     await connection.query(customerQuery, [customerData]); // Note the double array wrapping
 
     res.status(200).send('Customer data inserted successfully');
@@ -195,8 +259,6 @@ app.post('/api/updateCustomerData', async (req, res) => {
       customerData = req.body.data.map((row) => [
         row.CustomerName,
         row.CustomerSiteStatus,
-        row.StartDate,
-        row.EndDate,
         row.CustomerId // Add CustomerId to the end of the array
       ]);
     } else if (Array.isArray(req.body)) {
@@ -204,8 +266,6 @@ app.post('/api/updateCustomerData', async (req, res) => {
       customerData = req.body.map((row) => [
         row.CustomerName,
         row.CustomerSiteStatus,
-        row.StartDate,
-        row.EndDate,
         row.CustomerId // Add CustomerId to the end of the array
       ]);
     } else {
@@ -214,14 +274,12 @@ app.post('/api/updateCustomerData', async (req, res) => {
         [
           req.body.CustomerName,
           req.body.CustomerSiteStatus,
-          req.body.StartDate,
-          req.body.EndDate,
           req.body.CustomerId // Add CustomerId to the end of the array
         ]
       ];
     }
 
-    const customerQuery = 'UPDATE customer SET CustomerName = ?, CustomerSiteStatus = ?, StartDate = ?, EndDate = ? WHERE CustomerId = ?';
+    const customerQuery = 'UPDATE customer SET CustomerName = ?, CustomerSiteStatus = ? WHERE CustomerId = ?';
     for (const data of customerData) {
       await connection.query(customerQuery, data);
     }
@@ -468,109 +526,228 @@ app.post('/api/updateAtmData', (req, res) => {
     return res.status(400).json({ error: 'AtmId is required' });
   }
 
-  // Validate each employee object in the array
-  const isValidEmployeeDetails = employeeDetails.every((employee) =>
-    employee &&
-    typeof employee === 'object' &&
-    'EmployeeId' in employee &&
-    'EmployeeName' in employee &&
-    'EmployeeRole' in employee &&
-    'EmployeeContactNumber' in employee &&
-    'TypeOfWork' in employee
-  );
+  const updateQuery = `
+    UPDATE atm SET 
+      Country = ?, State = ?, City = ?, Address = ?, BranchCode = ?, SiteId = ?, Lho = ?, 
+      SiteStatus = ?, SiteType = ?, FromDate = ?, ToDate = ?, RequestedBy = ?, RequestFile = ?, 
+      BankId = ?, CustomerId = ? 
+    WHERE AtmId = ?
+  `;
 
-  if (!isValidEmployeeDetails) {
-    return res.status(400).json({ error: 'Invalid employee details format' });
-  }
+  const values = [Country, State, City, Address, BranchCode, SiteId, Lho, SiteStatus, SiteType, FromDate, ToDate, RequestedBy, RequestFile, BankId, CustomerId, AtmId];
 
-  // Prepare the SQL INSERT statements
-  const employeeInsertSQL = 'INSERT INTO employee (EmployeeId, EmployeeName, EmployeeRole, EmployeeContactNumber, TypeOfWork) VALUES ?';
-  const atmEmployeeInsertSQL = 'INSERT INTO atm_employee (AtmId, EmployeeId) VALUES ?';
-
-  // Extract values from employee details to be inserted into the employee table
-  const employeeValues = employeeDetails.map((employee) => [
-    employee.EmployeeId,
-    employee.EmployeeName,
-    employee.EmployeeRole,
-    employee.EmployeeContactNumber,
-    employee.TypeOfWork,
-  ]);
-
-  // Extract ATM ID and Employee ID pair for insertion into atm_employee table
-  const atmId = employeeDetails[0].AtmId; // Assuming AtmId is a property of employeeDetails
-  const employeeId = employeeDetails[0].EmployeeId;
-  const atmEmployeeValues = [[atmId, employeeId]]; // Create a single pair [AtmId, EmployeeId]
-
-  // Start a database transaction
-  connection.beginTransaction((err) => {
-    if (err) {
-      console.error('Error starting transaction:', err);
-      return res.status(500).json({ error: 'Failed to start transaction' });
+  connection.query(updateQuery, values, (error, results) => {
+    if (error) {
+      console.error('Error updating ATM data:', error);
+      return res.status(500).json({ error: 'Failed to update ATM data' });
     }
 
-    // Check if EmployeeId already exists in the employee table
-    connection.query('SELECT EmployeeId FROM employee WHERE EmployeeId = ?', [employeeId], (selectErr, selectResults) => {
-      if (selectErr) {
-        console.error('Error checking existing EmployeeId:', selectErr);
-        connection.rollback(() => {
-          console.error('Transaction rolled back due to select error.');
-          return res.status(500).json({ error: 'Failed to check existing EmployeeId' });
-        });
+    res.status(200).json({ message: 'ATM data updated successfully' });
+  });
+});
+//employee upload
+app.post('/api/insertEmployeeData', async (req, res) => {
+  try {
+    let employeeData = [];
+
+    if (req.body.employeeDetails) {
+      req.body.employeeDetails.forEach((row) => {
+        if (row.EmployeeId && row.EmployeeName && row.EmployeeRole && row.EmployeeContactNumber && row.TypeOfWork) {
+          employeeData.push([row.EmployeeId, row.EmployeeName, row.EmployeeRole, row.EmployeeContactNumber, row.TypeOfWork]);
+        }
+      });
+    } else if (Array.isArray(req.body)) {
+      req.body.forEach((row) => {
+        if (row.EmployeeId && row.EmployeeName && row.EmployeeRole && row.EmployeeContactNumber && row.TypeOfWork) {
+          employeeData.push([row.EmployeeId, row.EmployeeName, row.EmployeeRole, row.EmployeeContactNumber, row.TypeOfWork]);
+        }
+      });
+    } else {
+      if (req.body.EmployeeId && req.body.EmployeeName && req.body.EmployeeRole && req.body.EmployeeContactNumber && req.body.TypeOfWork) {
+        employeeData.push([req.body.EmployeeId, req.body.EmployeeName, req.body.EmployeeRole, req.body.EmployeeContactNumber, req.body.TypeOfWork]);
+      }
+    }
+
+    const employeeQuery = 'INSERT INTO employee (EmployeeId, EmployeeName, EmployeeRole, EmployeeContactNumber, TypeOfWork) VALUES ?';
+
+    connection.beginTransaction(async (err) => {
+      if (err) {
+        console.error('Error starting transaction:', err);
+        return res.status(500).send('Error starting transaction');
       }
 
-      if (selectResults.length > 0) {
-        // EmployeeId already exists, skip inserting into employee table
-        console.log(`EmployeeId '${employeeId}' already exists in the database. Skipping insertion into employee table.`);
-        proceedWithAtmEmployeeInsert();
-      } else {
-        // Insert into employee table
-        connection.query(employeeInsertSQL, [employeeValues], (error, employeeResults) => {
-          if (error) {
-            console.error('Error inserting employee data:', error);
-            connection.rollback(() => {
-              console.error('Transaction rolled back due to employee insertion error.');
-              return res.status(500).json({ error: 'Failed to insert employee data' });
+      try {
+        if (employeeData.length > 0) {
+          await new Promise((resolve, reject) => {
+            connection.query(employeeQuery, [employeeData], (error, results) => {
+              if (error) return reject(error);
+              resolve(results);
             });
-          } else {
-            // Proceed to insert into atm_employee table
-            proceedWithAtmEmployeeInsert(employeeResults);
-          }
-        });
-      }
-    });
-
-    // Function to insert into atm_employee table
-    function proceedWithAtmEmployeeInsert(employeeResults) {
-      connection.query(atmEmployeeInsertSQL, [atmEmployeeValues], (atmEmployeeError, atmEmployeeResults) => {
-        if (atmEmployeeError) {
-          console.error('Error inserting atm_employee data:', atmEmployeeError);
-          connection.rollback(() => {
-            console.error('Transaction rolled back due to atm_employee insertion error.');
-            return res.status(500).json({ error: 'Failed to insert atm_employee data' });
           });
         }
 
-        // Commit the transaction if both queries are successful
-        connection.commit((commitError) => {
-          if (commitError) {
-            console.error('Error committing transaction:', commitError);
+        connection.commit((err) => {
+          if (err) {
             connection.rollback(() => {
-              console.error('Transaction rolled back due to commit error.');
-              return res.status(500).json({ error: 'Failed to commit transaction' });
+              console.error('Error committing transaction:', err);
+              return res.status(500).send('Error committing transaction');
             });
+          } else {
+       
+            res.status(200).send('Employee data inserted successfully');
           }
-
-          console.log('Transaction committed successfully');
-          res.status(200).json({
-            message: 'Employee and atm_employee data inserted successfully',
-            insertedEmployeeRows: employeeResults ? employeeResults.affectedRows : 0,
-            insertedAtmEmployeeRows: atmEmployeeResults.affectedRows,
-          });
         });
-      });
-    }
-  });
+      } catch (error) {
+        connection.rollback(() => {
+          console.error('Transaction error:', error);
+          res.status(500).send('Error inserting employee data');
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error inserting employee data:', error);
+    res.status(500).send('Error inserting employee data');
+  }
 });
+app.post('/api/insertEmployeeIdAtmIdData', async (req, res) => {
+  try {
+    let employeeAtmData = [];
+
+    if (req.body.data) {
+      req.body.data.forEach((row) => {
+        if (row.AtmId && row.EmployeeId) {
+          employeeAtmData.push([row.AtmId, row.EmployeeId]);
+        }
+      });
+    } else if (Array.isArray(req.body)) {
+      req.body.forEach((row) => {
+        if (row.AtmId && row.EmployeeId) {
+          employeeAtmData.push([row.AtmId, row.EmployeeId]);
+        }
+      });
+    } else {
+      if (req.body.AtmId && req.body.EmployeeId) {
+        employeeAtmData.push([req.body.AtmId, req.body.EmployeeId]);
+      }
+    }
+
+    const employeeAtmQuery = 'INSERT INTO atm_employee (AtmId, EmployeeId) VALUES ?';
+
+    connection.beginTransaction(async (err) => {
+      if (err) {
+        console.error('Error starting transaction:', err);
+        return res.status(500).send('Error starting transaction');
+      }
+
+      try {
+        if (employeeAtmData.length > 0) {
+          await new Promise((resolve, reject) => {
+            connection.query(employeeAtmQuery, [employeeAtmData], (error, results) => {
+              if (error) return reject(error);
+              resolve(results);
+            });
+          });
+        }
+
+        connection.commit((err) => {
+          if (err) {
+            connection.rollback(() => {
+              console.error('Error committing transaction:', err);
+              return res.status(500).send('Error committing transaction');
+            });
+          } else {
+           
+            res.status(200).send('Employee-ATM data inserted successfully');
+          }
+        });
+      } catch (error) {
+        connection.rollback(() => {
+          console.error('Transaction error:', error);
+          res.status(500).send('Error inserting employee-ATM data');
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error inserting employee-ATM data:', error);
+    res.status(500).send('Error inserting employee-ATM data');
+  }
+});
+app.post('/api/updateEmployeeData', async (req, res) => {
+  try {
+    let employeeDetails = [];
+
+    if (req.body.employeeDetails) {
+      req.body.employeeDetails.forEach((employee) => {
+        if (employee.EmployeeId && employee.EmployeeName && employee.EmployeeRole && employee.EmployeeContactNumber && employee.TypeOfWork) {
+          employeeDetails.push(employee);
+        }
+      });
+    } else if (Array.isArray(req.body)) {
+      req.body.forEach((employee) => {
+        if (employee.EmployeeId && employee.EmployeeName && employee.EmployeeRole && employee.EmployeeContactNumber && employee.TypeOfWork) {
+          employeeDetails.push(employee);
+        }
+      });
+    } else {
+      if (req.body.EmployeeId && req.body.EmployeeName && req.body.EmployeeRole && req.body.EmployeeContactNumber && req.body.TypeOfWork) {
+        employeeDetails.push(req.body);
+      }
+    }
+
+    if (employeeDetails.length === 0) {
+      return res.status(400).json({ error: 'Invalid or empty employee details provided' });
+    }
+
+    const updateEmployeeSQL = 'UPDATE employee SET EmployeeName = ?, EmployeeRole = ?, EmployeeContactNumber = ?, TypeOfWork = ? WHERE EmployeeId = ?';
+
+    connection.beginTransaction(async (err) => {
+      if (err) {
+        console.error('Error starting transaction:', err);
+        return res.status(500).send('Error starting transaction');
+      }
+
+      try {
+        for (const employee of employeeDetails) {
+          const employeeUpdateValues = [
+            employee.EmployeeName,
+            employee.EmployeeRole,
+            employee.EmployeeContactNumber,
+            employee.TypeOfWork,
+            employee.EmployeeId
+          ];
+
+          await new Promise((resolve, reject) => {
+            connection.query(updateEmployeeSQL, employeeUpdateValues, (error, results) => {
+              if (error) return reject(error);
+              resolve(results);
+            });
+          });
+        }
+
+        connection.commit((err) => {
+          if (err) {
+            connection.rollback(() => {
+              console.error('Error committing transaction:', err);
+              return res.status(500).send('Error updating employee data');
+            });
+          } else {
+  
+            res.status(200).send('Employee data updated successfully');
+          }
+        });
+      } catch (error) {
+        connection.rollback(() => {
+          console.error('Transaction error:', error);
+          res.status(500).send('Error updating employee data');
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error updating employee data:', error);
+    res.status(500).send('Error updating employee data');
+  }
+});
+//services upload
 app.post('/api/insertServicesData', (req, res) => {
   const { servicesDetails } = req.body;
 
@@ -612,11 +789,11 @@ app.post('/api/updateServicesData', (req, res) => {
 
   const updateQuery = `
     UPDATE services SET 
-      ServiceType = ?, TakeoverDate = ?, HandoverDate = ?, PayOut=?, CostToClient = ?, AtmId = ? 
-    WHERE ServiceId = ?
+       TakeoverDate = ?, HandoverDate = ?, PayOut=?, CostToClient = ?
+    WHERE ServiceId = ? AND AtmId = ?
   `;
 
-  const values = [ServiceType, TakeoverDate, HandoverDate, PayOut, CostToClient, AtmId, ServiceId];
+  const values = [TakeoverDate, HandoverDate, PayOut, CostToClient, ServiceId, AtmId];
 
   connection.query(updateQuery, values, (error, results) => {
     if (error) {
@@ -637,12 +814,14 @@ app.post('/api/register', async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    const access = 'employee';
+    
     const query = 'INSERT INTO admin (name, username, password, phonenumber, access, session_intime, session_outtime) VALUES (?,?,?,?,?,?,?)';
     connection.query(query, [name, username, hashedPassword, phonenumber, access, session_intime, session_outtime], (error, results) => {
       if (error) {
         console.error('Error inserting data into admin table:', error);
         res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
-      } else {
+    }else {
         res.status(200).json({ success: true, message: 'Registration successful' });
       }
     });
@@ -917,7 +1096,6 @@ app.get('/services', (req, res) => {
       queryParams.push(AtmId);
     }
   }
-
   connection.query(query, queryParams, (error, results) => {
     if (error) {
       console.error('Error fetching services:', error);

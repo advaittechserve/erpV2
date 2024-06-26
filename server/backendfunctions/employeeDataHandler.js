@@ -74,7 +74,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
                }
         }
-
+        console.log("uploademployeeData function completed.");
          } catch (error) {
         console.error('Error processing employee data:', error);
     }

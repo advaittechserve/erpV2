@@ -5,10 +5,8 @@ async function uploadCustomerData(jsonData) {
   try {
     if (jsonData.length > 0) {
     for (let i = 0; i < jsonData.length; i++) {
-      const { CustomerId, CustomerName, CustomerSiteStatus, StartDate, EndDate } = jsonData[i];
-      // Convert Excel date serial numbers to JavaScript Date objects (assuming excelDateToJSDate function exists)
-      const formattedStartDate = typeof StartDate === 'number' ? excelDateToJSDate(StartDate).toISOString().split('T')[0] : StartDate;
-      const formattedEndDate = typeof EndDate === 'number' ? excelDateToJSDate(EndDate).toISOString().split('T')[0] : EndDate;
+      const { CustomerId, CustomerName, CustomerSiteStatus} = jsonData[i];
+
 
       try {
         const checkResponseCustomer = await axios.get(`http://localhost:5000/customer?name=${CustomerName}`);
@@ -27,8 +25,6 @@ async function uploadCustomerData(jsonData) {
             CustomerId: customerId,
             CustomerName: CustomerName !== existingCustomer.CustomerName ? CustomerName : existingCustomer.CustomerName,
             CustomerSiteStatus: CustomerSiteStatus !== existingCustomer.CustomerSiteStatus ? CustomerSiteStatus : existingCustomer.CustomerSiteStatus,
-            StartDate: formattedStartDate !== existingCustomer.StartDate ? formattedStartDate : existingCustomer.StartDate,
-            EndDate: formattedEndDate !== existingCustomer.EndDate ? formattedEndDate : existingCustomer.EndDate
           };
           const updateResponse = await axios.post('http://localhost:5000/api/updateCustomerData', updateData);
 
@@ -40,9 +36,7 @@ async function uploadCustomerData(jsonData) {
           const insertData = {
             CustomerId,
             CustomerName,
-            CustomerSiteStatus,
-            StartDate: formattedStartDate,
-            EndDate: formattedEndDate
+            CustomerSiteStatus
           };
 
           const insertResponse = await axios.post('http://localhost:5000/api/insertCustomerData', insertData);

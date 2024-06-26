@@ -78,6 +78,7 @@ async function uploadBankData(jsonData) {
                 }
             }
         }
+        console.log("uploadbankData function completed.");
     } catch (error) {
         console.error('Error processing bank data:', error);
     }
