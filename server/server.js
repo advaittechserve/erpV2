@@ -1205,10 +1205,26 @@ app.get('/atm_servicesdetails', (req, res) => {
   });
 });
 app.get('/admindetails', (req, res) => {
+  const {username} = req.query;
+  if(username)
+    {
+      const query = 'SELECT * FROM admin WHERE username = ?';
+      connection.query(query, [username], (error, results) => {
+        if (error) {
+          console.error('Error fetching admin details:', error);
+         // return res.status(500).json({ error: 'Internal server error' });
+        }
+        return res.json(results);
+        //console.log(results);
+      });
+    }
+    else{
+      
   connection.query('SELECT * FROM admin', (error, results) => {
     if (error) throw error;
     res.json(results);
   });
+}
 });
 app.get('/userdetails/:userId', (req, res) => {
   const userId = req.params.userId;

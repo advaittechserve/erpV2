@@ -321,7 +321,7 @@ const AtmForm = () => {
                                         id={`serviceId_${index}`}
                                         value={service.ServiceId}
                                         className="dropdown"
-                                        placeholder="Service Id (autofill)"
+                                        placeholder="Service ID(autofill)"
                                         disabled={!isEditMode}
                                     />
                                 </div>

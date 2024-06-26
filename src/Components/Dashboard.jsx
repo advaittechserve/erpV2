@@ -4,6 +4,7 @@ import Highcharts from 'highcharts/highstock';
 import HighchartsExporting from 'highcharts/modules/exporting';
 import HighchartsFullscreen from 'highcharts/modules/full-screen';
 import HighchartsReact from 'highcharts-react-official';
+//import {useAuth}
 import "../css/customerform.css";
 import "../css/dashboard.css";
 
@@ -18,26 +19,47 @@ const Dashboard = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // Default to current month
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-
-
-
   useEffect(() => {
     const fetchData = async () => {
       try {
         const response = await axios.get("http://localhost:5000/services");
+        const currentDate = new Date();
         const sortedData = response.data
-          .map(item => ({
-            timestamp: new Date(item.TakeoverDate).getTime(),
-            costToClient: item.CostToClient
-          }))
+          .map(item => {
+            const startDate = new Date(item.TakeoverDate).getTime();
+            const endDate = item.HandoverDate ? new Date(item.HandoverDate).getTime() : currentDate.getTime();
+            let timestamps = [];
+
+            // If HandoverDate is null, generate monthly timestamps from TakeoverDate to current date
+            if (!item.HandoverDate) {
+              let tempDate = new Date(item.TakeoverDate);
+              while (tempDate <= currentDate) {
+                timestamps.push({
+                  timestamp: new Date(tempDate).getTime(),
+                  costToClient: item.CostToClient,
+                  PayOut : item.PayOut
+                });
+                tempDate.setMonth(tempDate.getMonth() + 1);
+              }
+            } else {
+              timestamps.push({
+                timestamp: endDate,
+                costToClient: item.CostToClient,
+                PayOut : item.PayOut
+              });
+            }
+
+            return timestamps;
+          })
+          .flat()
           .sort((a, b) => a.timestamp - b.timestamp); // Sort by timestamp
 
-        const data = sortedData.map(item => [item.timestamp, item.costToClient]);
+        const data = sortedData.map(item => [item.timestamp, item.costToClient-item.PayOut]);
 
         // Create the chart with the sorted data
         Highcharts.stockChart('container', {
           accessibility: {
-            typeDescription: `Revenue.`
+            typeDescription: revenue
           },
           title: {
             text: 'Revenue'
@@ -91,14 +113,13 @@ const Dashboard = () => {
             }
           }]
         });
-        const currentDate = new Date();
-        // Calculate revenue for the selected month and year
-      const selectedMonthStart = new Date(selectedYear, selectedMonth - 1, 1).getTime();
-      const selectedMonthEnd = new Date(selectedYear, selectedMonth, 0).getTime();
-      const selectedMonthData = data.filter(([timestamp]) => timestamp >= selectedMonthStart && timestamp <= selectedMonthEnd);
-      const totalRevenue = selectedMonthData.reduce((acc, [, costToClient]) => acc + costToClient, 0);
-      setRevenue(totalRevenue.toFixed(3));
 
+        // Calculate revenue for the selected month and year
+        const selectedMonthStart = new Date(selectedYear, selectedMonth - 1, 1).getTime();
+        const selectedMonthEnd = new Date(selectedYear, selectedMonth, 0).getTime();
+        const selectedMonthData = data.filter(([timestamp]) => timestamp >= selectedMonthStart && timestamp <= selectedMonthEnd);
+        const totalRevenue = selectedMonthData.reduce((acc, [, costToClient]) => acc + costToClient, 0);
+        setRevenue(totalRevenue.toFixed(3));
 
         const customerResponse = await axios.get("http://localhost:5000/customer");
         const uniqueCustomers = new Set(customerResponse.data.map(item => item.CustomerId)).size;
@@ -123,7 +144,7 @@ const Dashboard = () => {
     }
 
     fetchData();
-  },[selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear]);
 
   const getPreviousMonthName = () => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -137,7 +158,6 @@ const Dashboard = () => {
     const prevYear = (currentDate.getMonth() === 0) ? currentDate.getFullYear() - 1 : currentDate.getFullYear();
     return prevYear;
   };
-
 
   return (
     <main className="">
@@ -161,8 +181,6 @@ const Dashboard = () => {
               </div>
               <div className="card-body">
                 <div>
-                  
-
                   <div className="card-title">₹ {revenue}</div>
                   <div className="card-subtitle">Revenue for <select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))}>
                       {Array.from({ length: 12 }, (_, i) => (
@@ -174,10 +192,6 @@ const Dashboard = () => {
                         <option key={i} value={new Date().getFullYear() - i}>{new Date().getFullYear() - i}</option>
                       ))}
                     </select></div>
-                  
-                    
-                  
-
                 </div>
               </div>
             </div>

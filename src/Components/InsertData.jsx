@@ -5,9 +5,11 @@ import uploadAnimationData from '../assets/upload-icon.json';
 import '../css/dragAnddrop.css';
 import {jwtDecode} from 'jwt-decode';
 import StatusModal from './StatusModal';
+import { Margin } from '@mui/icons-material';
 import MUIDataTable from "mui-datatables";
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import socketIOClient from 'socket.io-client';
+
 
 const ExcelUploader = () => {
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -53,6 +55,57 @@ const ExcelUploader = () => {
     const handleDragOver = (e) => {
         e.preventDefault();
     };
+
+    const isRowEmpty = (row) => {
+        return Object.values(row).every(x => (x === null || x === ''));
+    };
+
+    const handleTemplateDownload = () => {
+        const link = document.createElement('a');
+        link.href = '/Template%20for%20download.xlsx';
+        link.download = 'Template for download.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    
+
+    // const handleFileSubmit = async (data) => {
+    //     if (!selectedFile) {
+    //         alert('Please select a file');
+    //         return;
+    //     }
+    
+    //     try {
+    //         setIsUploading(true);
+    //         const workbook = XLSX.readFile(selectedFile);
+    //         const sheetName = workbook.SheetNames[0];
+    //         const worksheet = workbook.Sheets[sheetName];
+    //         const excelData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    //         excelData.forEach((row, rowIndex) => {
+    //             row.forEach((cell, columnIndex) => {
+    //                 if (cell === '') {
+    //                     validationErrors.push(`Blank cell found at row ${rowIndex + 1}, column ${columnIndex + 1}`);
+    //                 }
+    //             });
+    //             templateData.forEach(section => {
+    //                 section.fields.forEach(field => {
+    //                     if (field.required && !row.includes(field.label)) {
+    //                         validationErrors.push(`Required field '${field.label}' is empty at row ${rowIndex + 1}`);
+    //                     }
+    //                 });
+    //             });
+    //         });
+    
+    //         if (validationErrors.length > 0) {
+    //             // If validation errors exist, set errors and return
+    //             setValidationErrors(validationErrors);
+    //             setModalMessage(validationErrors);
+    //             setShowModal(true);
+    //             return;
+    //         }
+
     useEffect(() => {
         const socket = socketIOClient('http://localhost:5000');
         socket.on('uploadProgress', (percentCompleted) => {
@@ -208,9 +261,16 @@ const ExcelUploader = () => {
                         <input id="dropzone-file" name='file' type="file" className="hidden" onChange={handleFileUpload} />
                     </label>
                 </div>
-                <button className="upload-btn" onClick={handleFileSubmit} disabled={isUploading}>
+                <button className="submit-btn" onClick={handleFileSubmit} disabled={isUploading}>
                     {isUploading ? 'Uploading...' : 'Upload File'}
                 </button>
+            
+                <button 
+            style={{ marginLeft: '10px' }} 
+            className="cancel-btn" 
+            onClick={handleTemplateDownload}>
+            Download Template
+        </button>
 
                 <div className="flex justify-between m-2">
                     <span className="text-base font-medium text-yellow-500 dark:text-white">{modalMessage}</span>
@@ -218,7 +278,7 @@ const ExcelUploader = () => {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
                     <div className="bg-yellow-500 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-                </div>
+                </div>  
                 <div className="mt-8 relative overflow-x-auto">
                     <ThemeProvider theme={getMuiTheme}>
                         <MUIDataTable

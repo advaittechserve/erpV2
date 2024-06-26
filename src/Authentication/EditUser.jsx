@@ -4,6 +4,8 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import BackButton from '../Components/BackButton';
 import '../css/customerform.css';
+import { getUserRole } from '../functions/userAuth';
+import { jwtDecode } from 'jwt-decode';
 
 const EditUser = () => {
     // State variables to store form data
@@ -15,20 +17,36 @@ const EditUser = () => {
     const [access, setAccess] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
-    const handleRoleChange = (e) => {
-        setAccess(e.target.value);
-    };
+    const [userRole, setUserRole] = useState(null); // State to hold user's role
+
     useEffect(() => {
-        // Fetch user details based on userId
-        fetch(`http://localhost:5000/userdetails/${userId}`)
-            .then((response) => {
+        const fetchUserDetails = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    const decoded = jwtDecode(token);
+                    const userId = decoded.username;
+                    const role = await getUserRole(userId);
+                    setUserRole(role[0].access); // Assuming role[0].access gives the user role
+                } else {
+                    console.error('No token found in localStorage');
+                }
+            } catch (error) {
+                console.error('Error decoding token or fetching user role:', error);
+            }
+        };
+
+        fetchUserDetails();
+    }, []);
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const response = await fetch(`http://localhost:5000/userdetails/${userId}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch user details');
                 }
-                return response.json();
-            })
-            .then((userData) => {
-                // Update state with the fetched user data
+            const userData = await response.json();
                 setName(userData.name);
                 setUsername(userData.username);
                 setPhonenumber(userData.phonenumber);
@@ -36,12 +54,29 @@ const EditUser = () => {
                 setPassword(userData.password);
                 setConfirmPassword(userData.password);
                 // Assuming you don't want to prepopulate password fields
-            })
-            .catch((error) => {
+            } catch (error) {
                 setError('Failed to fetch user details');
                 console.error('User details fetch error:', error);
-            });
+            }
+        };
+
+        fetchUserData();
     }, [userId]);
+
+    // useEffect(() => {
+    //     // Fetch user role from server or localStorage
+    //     const fetchUserRole = async () => {
+    //         try {
+    //             // Replace with actual logic to fetch user role
+    //             const role = await getUserRole(userId); // Example function to fetch role
+    //             setUserRole(role);
+    //         } catch (error) {
+    //             console.error('Error fetching user role:', error);
+    //         }
+    //     };
+
+    //     fetchUserRole();
+    // }, [userId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -52,11 +87,11 @@ const EditUser = () => {
         }
 
         const formData = {
-            name: name,
-            username: username,
-            phonenumber: phonenumber,
-            access: access,
-            password: password,
+            name,
+            username,
+            phonenumber,
+            access,
+            password,
         };
 
         try {
@@ -85,49 +120,46 @@ const EditUser = () => {
             <div className="customer-details">
                 <BackButton />
                 <form className="" onSubmit={handleSubmit}>
-                <p className="customer-details-heading">Edit User Details</p>
+                    <p className="customer-details-heading">Edit User Details</p>
                     <div className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
                         <div className="relative">
-                            <label htmlFor="floating_outlined" className="label_form">Name</label>
+                            <label htmlFor="name" className="label_form">Name</label>
                             <input type="text" value={name} onChange={(e) => setName(e.target.value)} name="name" id="name" className="form-input" placeholder="Your name" required />
                         </div>
                         <div className="relative">
-                            <label htmlFor="floating_outlined" className="label_form">Username</label>
-                            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} name="username" id="username" className="form-input" placeholder="xyz@company.com" required />
+                            <label htmlFor="username" className="label_form">Username</label>
+                            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} name="username" id="username" className="form-input" placeholder="xyz@company.com"  disabled={userRole === 'Employee' || userRole === 'Admin'} required />
                         </div>
                         <div className="relative">
-                            <label htmlFor="floating_outlined" className="label_form">Phone Number</label>
+                            <label htmlFor="phonenumber" className="label_form">Phone Number</label>
                             <input type="number" value={phonenumber} onChange={(e) => setPhonenumber(e.target.value)} name="phonenumber" id="phonenumber" className="form-input" placeholder="XXXXXXXXXX" required />
                         </div>
                     </div>
                     <div className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
                         <div className="relative">
-                            <label htmlFor="floating_outlined" className="label_form">
-                                Access
-                            </label>
-                            <select value={access} onChange={handleRoleChange} name="access" id="access" className="form-input" required>
+                            <label htmlFor="access" className="label_form">Access</label>
+                            <select value={access} onChange={userRole} name="access" id="access" className="form-input" disabled={userRole === 'Employee' || userRole === 'Admin'} required>
                                 <option value="">Select Role</option>
-                                <option value="SuperAdmin" selected={access === 'SuperAdmin'}>Super Admin</option>
-                                <option value="Admin" selected={access === 'Admin'}>Admin</option>
-                                <option value="Employee" selected={access === 'Employee'}>Employee</option>
-
-                            </select> </div>
+                                <option value="SuperAdmin">Super Admin</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Employee">Employee</option>
+                            </select>
+                        </div>
                         <div className="relative">
-                            <label htmlFor="floating_outlined" className="label_form">Password</label>
+                            <label htmlFor="password" className="label_form">Password</label>
                             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} name="password" id="password" className="form-input" placeholder="••••••••" required />
                         </div>
                         <div className="relative">
-                            <label htmlFor="floating_outlined" className="label_form">Confirm password</label>
+                            <label htmlFor="confirm-password" className="label_form">Confirm password</label>
                             <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} name="confirm-password" id="confirm-password" className="form-input" placeholder="••••••••" required />
                         </div>
                     </div>
                     {error && <div className="error-message">{error}</div>}
-                    <button type="submit" className="submit-btn">Edit user</button>
+                    <button type="submit" className="submit-btn">Edit User</button>
                 </form>
                 <ToastContainer />
             </div>
         </div>
-
     );
 };
 
