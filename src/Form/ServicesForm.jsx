@@ -183,7 +183,7 @@ const ServicesForm = () => {
     return (
         <div className='container-form'>
             <form className="customer-details" onSubmit={handleSubmit}>
-                <p className="customer-details-heading">Services  Details</p>
+                <p className="customer-details-heading">Services Details</p>
                 <div className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
 
                     <input

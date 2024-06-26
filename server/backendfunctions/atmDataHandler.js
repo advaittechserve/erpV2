@@ -82,6 +82,7 @@ async function uploadAtmData (jsonData) {
         }
       }
     }
+    console.log("uploadatmData function completed.");
   } catch (error) {
     console.error('Error processing ATM data:', error.response ? error.response.data : error.message);
   }

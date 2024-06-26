@@ -12,7 +12,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
       const formattedHandoverDate = typeof HandoverDate === 'number' ? excelDateToJSDate(HandoverDate).toISOString().split('T')[0] : HandoverDate;
 
       try {
-        const checkResponseService = await axios.get(`http://localhost:5000/services?ServiceId=<span class="math-inline">\{ServiceId\}&AtmId\=</span>{AtmId}`);
+        const checkResponseService = await axios.get('http://localhost:5000/services',{params: { ServiceId, AtmId }});
         if (checkResponseService.data && checkResponseService.data.length > 0) {
           const existingService = checkResponseService.data[0];
           const updateData = {
@@ -49,6 +49,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         if (insertResponse.status !== 200) {
           throw new Error(`Error inserting service data: ${insertResponse.data}`);
         }
+        console.log("uploadserviceData function completed.");
       } catch (error) {
         console.error('Error processing service data:', error.message);
       }

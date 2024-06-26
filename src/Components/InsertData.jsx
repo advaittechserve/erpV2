@@ -1,11 +1,15 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Lottie from 'react-lottie';
 import uploadAnimationData from '../assets/upload-icon.json';
 import '../css/dragAnddrop.css';
-import { jwtDecode } from 'jwt-decode';
+import {jwtDecode} from 'jwt-decode';
 import StatusModal from './StatusModal';
 import { Margin } from '@mui/icons-material';
+import MUIDataTable from "mui-datatables";
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import socketIOClient from 'socket.io-client';
+
 
 const ExcelUploader = () => {
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -101,21 +105,15 @@ const ExcelUploader = () => {
     //             setShowModal(true);
     //             return;
     //         }
+
+    useEffect(() => {
+        const socket = socketIOClient('http://localhost:5000');
+        socket.on('uploadProgress', (percentCompleted) => {
+          setUploadProgress(percentCompleted);
+        });
     
-    //         // Process the uploaded data
-    //         await uploadCustomerData(data, setUploadProgress, setModalMessage);
-    //         await uploadBankData(data, setUploadProgress, setModalMessage);
-    //         await uploadAtmData(data, setUploadProgress, setModalMessage);
-    //         await uploadEmployeeData(data, setUploadProgress, setModalMessage);
-    //         await uploadServiceData(data, setUploadProgress, setModalMessage);
-    //         setModalMessage('File data logged successfully');
-    //     } catch (error) {
-    //         console.error('Error uploading file:', error);
-    //         setModalMessage('Error uploading file!');
-    //     } finally {
-    //         setIsUploading(false);
-    //     }
-    // };
+        return () => socket.disconnect();
+      }, []);
     const handleFileSubmit = async () => {
         if (!selectedFile) {
           alert('Please select a file');
@@ -132,10 +130,26 @@ const ExcelUploader = () => {
           const response = await axios.post('http://localhost:5000/api/uploadbulk', formData, {
             headers: {
               'Content-Type': 'multipart/form-data'
-            }
+            },
+            onUploadProgress: (progressEvent) => {
+                const percentCompleted = Math.round((progressEvent.loaded) / progressEvent.total);
+                console.log('Axios upload progress:', percentCompleted);
+                setUploadProgress(percentCompleted); // Update progress directly from Axios event
+              }
           });
       
           setModalMessage(response.data.message); // Assuming response contains a message
+          const token = localStorage.getItem("token");
+          const decoded = jwtDecode(token);
+          const uploadedBy = decoded.username;
+          const uploadedTime = new Date().toISOString(); 
+          const uploadFileDataResponse = await axios.post('http://localhost:5000/api/uploadfiledata', {
+            name: fileName,
+            uploadedBy,
+            status : 'Success',
+            uploadedTime
+          });
+      
       
         } catch (error) {
           console.error('Error uploading file to server:', error);
@@ -157,6 +171,71 @@ const ExcelUploader = () => {
 
         fetchUploadedFiles();
     }, []);
+
+    const columns = [
+        {
+            name: "name",
+            label: "File Name",
+        },
+        {
+            name: "uploadedTime",
+            label: "Uploaded Time",
+        },
+        {
+            name: "uploadedBy",
+            label: "Uploaded By",
+        },
+        {
+            name: "status",
+            label: "Status",
+        }
+    ];
+
+    const options = {
+        search: true,
+        download: true,
+        print: false,
+        viewColumns: false,
+        filter: true,
+        responsive: "standard",
+        scrollX: true,
+        selectableRows: "none",
+      };
+
+    const getMuiTheme = () =>
+        createTheme({
+          typography: {
+            fontFamily: "Calibri",
+          },
+          palette: {
+            background: {
+              paper: "#fff",
+            },
+          },
+          components: {
+            MuiTableCell: {
+              styleOverrides: {
+                head: {
+                  whiteSpace: "nowrap",
+                  padding: "5px",
+                  fontWeight: "bold",
+                },
+                body: {
+                  padding: "10px",
+                  fontSize: "14px",
+                  fontWeight: "bold",
+                },
+              },
+            },
+            MuiPaper: {
+              styleOverrides: {
+                root: {
+                  boxShadow: "none",
+                },
+              },
+            },
+          },
+        });
 
     return (
         <div className="container">
@@ -201,34 +280,13 @@ const ExcelUploader = () => {
                     <div className="bg-yellow-500 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
                 </div>  
                 <div className="mt-8 relative overflow-x-auto">
-                    <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" className="px-6 py-3">File Name</th>
-                                <th scope="col" className="px-6 py-3">Uploaded Time</th>
-                                <th scope="col" className="px-6 py-3">Uploaded By</th>
-                                <th scope="col" className="px-6 py-3">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {uploadedFiles.map(file => (
-                                <tr key={file.id} className="border-b dark:bg-gray-800 dark:border-gray-700">
-                                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                        {file.name}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {file.uploadedTime}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {file.uploadedBy}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {file.status}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <ThemeProvider theme={getMuiTheme}>
+                        <MUIDataTable
+                            data={uploadedFiles}
+                            columns={columns}
+                            options={options}
+                        />
+                    </ThemeProvider>
                 </div>
             </div>
             <StatusModal 
