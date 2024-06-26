@@ -8,16 +8,22 @@ require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql');
 const cors = require('cors');
+const http = require('http');
 const bcrypt = require('bcryptjs');
+const socketIo = require('socket.io');
+const { promisify } = require('util');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
 const Papa = require('papaparse');
 const XLSX = require('xlsx');
 const app = express();
+const unlinkAsync = promisify(fs.unlink);
 const port = 5000;
 process.env.TZ = 'Asia/Kolkata'; // Set the server timezone to IST
 const countryStateCity = require("country-state-city");
+const server = http.createServer(app);
+const io = socketIo(server);
 
 const currentDate = new Date();
 currentDate.toLocaleString('en-IN', {
@@ -56,6 +62,10 @@ const upload = multer({ storage: storage });
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
+app.use((req, res, next) => {
+  req.app.io = io;
+  next();
+});
 //log upload
 app.post('/api/newUploadLog', (req, res) => {
   const timestamp = new Date().toISOString().replace(/:/g, '-');
@@ -83,6 +93,66 @@ app.post('/api/log', (req, res) => {
     res.sendStatus(200);
   });
 });
+// const asyncForEach = async (array, callback) => {
+//   for (let index = 0; index < array.length; index++) {
+//     await callback(array[index], index, array);
+//   }
+// };
+
+// app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
+//   try {
+//     const file = req.file;
+//     if (!file) {
+//       return res.status(400).json({ message: 'No file uploaded' });
+//     }
+
+//     const workbook = XLSX.readFile(file.path); // Read Excel file
+//     const sheetName = workbook.SheetNames[0]; // Get the first sheet name
+//     const worksheet = workbook.Sheets[sheetName]; // Get the worksheet
+//     const jsonData = XLSX.utils.sheet_to_json(worksheet); // Convert sheet to JSON
+    
+//     const sequentialFunctions = [
+//       uploadCustomerData,
+//       uploadBankData,
+//       uploadAtmData
+//     ];
+
+//     const concurrentFunctions = [
+//       uploadEmployeeData,
+//       uploadServiceData
+//     ];
+
+//     let progress = 0;
+//     const totalFunctions = sequentialFunctions.length + concurrentFunctions.length;
+
+//     // Process sequential functions using asyncForEach
+//     await asyncForEach(sequentialFunctions, async (uploadFunction) => {
+//       await uploadFunction(jsonData);
+//       progress++;
+//       const percentCompleted = Math.round((progress * 100) / totalFunctions);
+//       // Emit progress to client
+//       req.app.io.emit('uploadProgress', percentCompleted);
+//     });
+
+//     // Process concurrent functions using Promise.all
+//     await Promise.all(concurrentFunctions.map(async (uploadFunction) => {
+//       await uploadFunction(jsonData);
+//       progress++;
+//       const percentCompleted = Math.round((progress * 100) / totalFunctions);
+//       // Emit progress to client
+//       req.app.io.emit('uploadProgress', percentCompleted);
+//     }));
+
+//     // Cleanup: Delete the file after processing
+//     await unlinkAsync(file.path);
+
+//     return res.json({ message: 'File uploaded successfully' });
+//   } catch (error) {
+//     console.error('Error uploading file:', error);
+//     return res.status(500).json({ message: 'Error uploading file' });
+//   }
+// });
+
 app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
   try {
     const file = req.file;
@@ -152,8 +222,6 @@ app.post('/api/insertCustomerData', async (req, res) => {
         row.CustomerId,
         row.CustomerName,
         row.CustomerSiteStatus, // Use CustomerStatus instead of CustomerSiteStatus to match the frontend
-        row.StartDate,
-        row.EndDate
       ]);
     } else if (Array.isArray(req.body)) {
       // If the request body is already an array, use it as is
@@ -161,8 +229,6 @@ app.post('/api/insertCustomerData', async (req, res) => {
         row.CustomerId,
         row.CustomerName,
         row.CustomerSiteStatus,
-        row.StartDate,
-        row.EndDate
       ]);
     } else {
       // Otherwise, map the request body to the desired format
@@ -171,13 +237,11 @@ app.post('/api/insertCustomerData', async (req, res) => {
           req.body.CustomerId,
           req.body.CustomerName,
           req.body.CustomerSiteStatus,
-          req.body.StartDate,
-          req.body.EndDate
         ]
       ];
     }
 
-    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus, StartDate, EndDate) VALUES ?';
+    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus) VALUES ?';
     await connection.query(customerQuery, [customerData]); // Note the double array wrapping
 
     res.status(200).send('Customer data inserted successfully');
@@ -195,8 +259,6 @@ app.post('/api/updateCustomerData', async (req, res) => {
       customerData = req.body.data.map((row) => [
         row.CustomerName,
         row.CustomerSiteStatus,
-        row.StartDate,
-        row.EndDate,
         row.CustomerId // Add CustomerId to the end of the array
       ]);
     } else if (Array.isArray(req.body)) {
@@ -204,8 +266,6 @@ app.post('/api/updateCustomerData', async (req, res) => {
       customerData = req.body.map((row) => [
         row.CustomerName,
         row.CustomerSiteStatus,
-        row.StartDate,
-        row.EndDate,
         row.CustomerId // Add CustomerId to the end of the array
       ]);
     } else {
@@ -214,14 +274,12 @@ app.post('/api/updateCustomerData', async (req, res) => {
         [
           req.body.CustomerName,
           req.body.CustomerSiteStatus,
-          req.body.StartDate,
-          req.body.EndDate,
           req.body.CustomerId // Add CustomerId to the end of the array
         ]
       ];
     }
 
-    const customerQuery = 'UPDATE customer SET CustomerName = ?, CustomerSiteStatus = ?, StartDate = ?, EndDate = ? WHERE CustomerId = ?';
+    const customerQuery = 'UPDATE customer SET CustomerName = ?, CustomerSiteStatus = ? WHERE CustomerId = ?';
     for (const data of customerData) {
       await connection.query(customerQuery, data);
     }
@@ -731,11 +789,11 @@ app.post('/api/updateServicesData', (req, res) => {
 
   const updateQuery = `
     UPDATE services SET 
-      ServiceType = ?, TakeoverDate = ?, HandoverDate = ?, PayOut=?, CostToClient = ?, AtmId = ? 
-    WHERE ServiceId = ?
+       TakeoverDate = ?, HandoverDate = ?, PayOut=?, CostToClient = ?
+    WHERE ServiceId = ? AND AtmId = ?
   `;
 
-  const values = [ServiceType, TakeoverDate, HandoverDate, PayOut, CostToClient, AtmId, ServiceId];
+  const values = [TakeoverDate, HandoverDate, PayOut, CostToClient, ServiceId, AtmId];
 
   connection.query(updateQuery, values, (error, results) => {
     if (error) {
@@ -756,12 +814,14 @@ app.post('/api/register', async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    const access = 'employee';
+    
     const query = 'INSERT INTO admin (name, username, password, phonenumber, access, session_intime, session_outtime) VALUES (?,?,?,?,?,?,?)';
     connection.query(query, [name, username, hashedPassword, phonenumber, access, session_intime, session_outtime], (error, results) => {
       if (error) {
         console.error('Error inserting data into admin table:', error);
         res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
-      } else {
+    }else {
         res.status(200).json({ success: true, message: 'Registration successful' });
       }
     });
@@ -1036,7 +1096,6 @@ app.get('/services', (req, res) => {
       queryParams.push(AtmId);
     }
   }
-
   connection.query(query, queryParams, (error, results) => {
     if (error) {
       console.error('Error fetching services:', error);

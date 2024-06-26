@@ -16,7 +16,7 @@ export async function uploadServiceData(jsonData) {
 
             let checkResponseService;
             try {
-                checkResponseService = await axios.get(`http://localhost:5000/services?ServiceId=${ServiceId}&AtmId=${AtmId}`);
+                const checkResponseService = await axios.get('http://localhost:5000/services',{params: { ServiceId, AtmId }});
             } catch (error) {
                 console.error('Error checking service data:', error.response ? error.response.data : error.message);
                 continue;  // Skip to the next iteration
