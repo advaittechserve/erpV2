@@ -109,7 +109,7 @@ const EmployeeForm = () => {
                         value={employeeId}
                         onChange={(e) => setEmployeeId(e.target.value)}
                         className="dropdown"
-                        placeholder="Employee Id"
+                        placeholder="Employee ID"
                         required
                     />
                     <input

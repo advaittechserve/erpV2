@@ -177,7 +177,7 @@ app.post('/api/insertCustomerData', async (req, res) => {
       ];
     }
 
-    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus, StartDate, EndDate) VALUES ?';
+    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus) VALUES ?';
     await connection.query(customerQuery, [customerData]); // Note the double array wrapping
 
     res.status(200).send('Customer data inserted successfully');
@@ -756,12 +756,14 @@ app.post('/api/register', async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    const access = 'employee';
+    
     const query = 'INSERT INTO admin (name, username, password, phonenumber, access, session_intime, session_outtime) VALUES (?,?,?,?,?,?,?)';
     connection.query(query, [name, username, hashedPassword, phonenumber, access, session_intime, session_outtime], (error, results) => {
       if (error) {
         console.error('Error inserting data into admin table:', error);
         res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
-      } else {
+    }else {
         res.status(200).json({ success: true, message: 'Registration successful' });
       }
     });
@@ -1146,10 +1148,26 @@ app.get('/atm_servicesdetails', (req, res) => {
   });
 });
 app.get('/admindetails', (req, res) => {
+  const {username} = req.query;
+  if(username)
+    {
+      const query = 'SELECT * FROM admin WHERE username = ?';
+      connection.query(query, [username], (error, results) => {
+        if (error) {
+          console.error('Error fetching admin details:', error);
+         // return res.status(500).json({ error: 'Internal server error' });
+        }
+        return res.json(results);
+        //console.log(results);
+      });
+    }
+    else{
+      
   connection.query('SELECT * FROM admin', (error, results) => {
     if (error) throw error;
     res.json(results);
   });
+}
 });
 app.get('/userdetails/:userId', (req, res) => {
   const userId = req.params.userId;

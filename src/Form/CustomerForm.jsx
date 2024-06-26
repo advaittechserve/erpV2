@@ -54,6 +54,12 @@ const CustomerForm = () => {
         }]);
     };
 
+    const handleDeleteAtm = (index) => {
+        const updatedAtmDetails = [...atmDetails];
+        updatedAtmDetails.splice(index, 1);
+        setAtmDetails(updatedAtmDetails);
+    };
+
     const handleCheckboxChange = (index) => {
         const newAtmDetails = [...atmDetails];
         newAtmDetails[index].sameAsAbove = !newAtmDetails[index].sameAsAbove;
@@ -580,7 +586,7 @@ const CustomerForm = () => {
                             <option value="Inactive">Inactive</option>
                         </select>
                     </div>
-                    <div>
+                    {/* <div>
                         {isDatePickerStartDate ? (
                             <input
                                 type="date"
@@ -603,8 +609,8 @@ const CustomerForm = () => {
                                 required
                             />
                         )}
-                    </div>
-                    <div>
+                    </div> */}
+                    {/* <div>
                         {isDatePickerEndDate ? (
                             <input
                                 type="date"
@@ -627,7 +633,7 @@ const CustomerForm = () => {
                                 required
                             />
                         )}
-                    </div>
+                    </div> */}
 
                 </div>
                 <p className="customer-details-heading">Region Details</p>
@@ -690,6 +696,12 @@ const CustomerForm = () => {
 
                     {atmDetails.map((atm, index) => (
                         <><hr></hr>
+                    {index !== 0 && (
+  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', cursor: 'pointer', color: '#ff0000', fontSize: '1.5rem' }} onClick={() => handleDeleteAtm(index)}>
+    ✖ {/* Cross (×) icon */}
+  </div>
+)}
+
                             <div key={atm.id} className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
 
                                 <div>
@@ -699,7 +711,7 @@ const CustomerForm = () => {
                                         value={atm.AtmId}
                                         onChange={(event) => handleAtmIdChange(index, event)}
                                         className="dropdown"
-                                        placeholder="Atm Id"
+                                        placeholder="Atm ID"
                                         required
                                     />
                                     <ul className='ul-suggestion'>
@@ -729,7 +741,7 @@ const CustomerForm = () => {
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
                                         placeholder="Branch Code"
-                                        required
+                                        //required
                                     />
                                 </div>
                                 <div>
@@ -739,8 +751,8 @@ const CustomerForm = () => {
                                         value={atm.SiteId}
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
-                                        placeholder="Site Id"
-                                        required
+                                        placeholder="Site ID"
+                                        //required
                                     />
                                 </div>
                                 <div>
@@ -751,7 +763,7 @@ const CustomerForm = () => {
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
                                         placeholder="LHO"
-                                        required
+                                        //required
                                     />
                                 </div>
                                 <div>
@@ -774,8 +786,8 @@ const CustomerForm = () => {
                                         className="dropdown"
                                     >
                                         <option value="" disabled>Site Type</option>
-                                        <option value="Onsite">Onsite</option>
-                                        <option value="Offsite">Offsite</option>
+                                        <option value="Onsite">Back Office</option>
+                                        <option value="Offsite">Field</option>
                                     </select>
                                 </div>
                                 <div>
@@ -814,7 +826,7 @@ const CustomerForm = () => {
                                             className="dropdown"
                                             onFocus={() => handleFocusToDate(index)}
                                             onBlur={() => handleBlurToDate(index)}
-                                            required
+                                            //required
                                         />
                                     ) : (
                                         <input
@@ -826,7 +838,7 @@ const CustomerForm = () => {
                                             placeholder="To Date"
                                             onFocus={() => handleFocusToDate(index)}
                                             onBlur={() => handleBlurToDate(index)}
-                                            required
+                                            //required
                                         />
                                     )}
                                 </div>
@@ -851,6 +863,7 @@ const CustomerForm = () => {
                                     />
                                 </div>
                                 {index !== 0 && (
+                                    
                                     <div>
                                         <label>
                                             <input
@@ -860,12 +873,18 @@ const CustomerForm = () => {
                                             />
                                             Details same as first atm
                                         </label>
+                                        
                                     </div>
+                                    
                                 )}
+                                
                             </div>
+                        
                         </>
+                        
                     ))}
                     <button className="add-btn" onClick={handleAddAtm}>Add ATM</button>
+                   
                 </div>
                 {validationError && <div className="error-message">{validationError}</div>}
 

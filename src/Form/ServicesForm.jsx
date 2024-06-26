@@ -19,21 +19,23 @@ const ServicesForm = () => {
     const [validationError, setValidationError] = useState('');
     const [costToClient, setcostToClient] = useState('');
     const [selectedAtmIds, setSelectedAtmIds] = useState([]);
+    const [payOut, setpayOut] = useState('');
     const [isChecked, setIsChecked] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    
 
 
     // Mapping of service types to service IDs
     const serviceIdMap = {
-        HK: 'HK123',
-        BLM: 'BLM456',
-        CT: 'CT789',
-        'FIXED RNM': 'RNM123',
-        FB: 'FB456',
-        AUDIT: 'AUDIT789',
+        HK: 'HK',
+        BLM: 'BLM',
+        CT: 'CT',
+        'FIXED RNM': 'RNM',
+        FB: 'FB',
+        AUDIT: 'AUDIT',
     };
     const customStyles = {
         control: (provided, state) => ({
@@ -154,7 +156,8 @@ const ServicesForm = () => {
                             TakeoverDate: startDate,
                             HandoverDate: endDate,
                             CostToClient: costToClient,
-                            AtmId: atmId
+                            AtmId: atmId,
+                            PayOut: payOut
                         }]
                     };
                     setModalMessage(`Uploading services details for ${atmId}...`);
@@ -187,7 +190,7 @@ const ServicesForm = () => {
                         type="text"
                         value={serviceId}
                         className="dropdown"
-                        placeholder="Service Id (autofill)"
+                        placeholder="Service ID (autofill)"
                         disabled
                     />
                     <select
@@ -246,7 +249,7 @@ const ServicesForm = () => {
                             className="dropdown"
                             onFocus={handleFocusEndDate}
                             onBlur={handleBlurEndDate}
-                            required
+                            //required
                         />
                     ) : (
                         <input
@@ -257,7 +260,7 @@ const ServicesForm = () => {
                             placeholder="Select End Date"
                             onFocus={handleFocusEndDate}
                             onBlur={handleBlurEndDate}
-                            required
+                            //required
                         />
                     )}
                     <select
@@ -274,7 +277,7 @@ const ServicesForm = () => {
                     </select>
 
                 </div>
-                <div className="grid gap-4 mb-6 md:grid-cols-2 mt-4">
+                <div className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
 
                     <Select
                         isMulti
@@ -292,7 +295,13 @@ const ServicesForm = () => {
                         />
                         <span className="text-gray-800">Select all atms</span>
                     </label>
-
+                    <input
+                        type="number"
+                        value={payOut}
+                        onChange={(e) => setpayOut(e.target.value)}
+                        className="dropdown"
+                        placeholder="Payout"
+                    />
                 </div>
 
                 {validationError && <div className="error-message">{validationError}</div>}

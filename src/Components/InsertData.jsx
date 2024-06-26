@@ -5,6 +5,7 @@ import uploadAnimationData from '../assets/upload-icon.json';
 import '../css/dragAnddrop.css';
 import { jwtDecode } from 'jwt-decode';
 import StatusModal from './StatusModal';
+import { Margin } from '@mui/icons-material';
 
 const ExcelUploader = () => {
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -54,6 +55,17 @@ const ExcelUploader = () => {
     const isRowEmpty = (row) => {
         return Object.values(row).every(x => (x === null || x === ''));
     };
+
+    const handleTemplateDownload = () => {
+        const link = document.createElement('a');
+        link.href = '/Template%20for%20download.xlsx';
+        link.download = 'Template for download.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    
 
     // const handleFileSubmit = async (data) => {
     //     if (!selectedFile) {
@@ -170,9 +182,16 @@ const ExcelUploader = () => {
                         <input id="dropzone-file" name='file' type="file" className="hidden" onChange={handleFileUpload} />
                     </label>
                 </div>
-                <button className="upload-btn" onClick={handleFileSubmit} disabled={isUploading}>
+                <button className="submit-btn" onClick={handleFileSubmit} disabled={isUploading}>
                     {isUploading ? 'Uploading...' : 'Upload File'}
                 </button>
+            
+                <button 
+            style={{ marginLeft: '10px' }} 
+            className="cancel-btn" 
+            onClick={handleTemplateDownload}>
+            Download Template
+        </button>
 
                 <div className="flex justify-between m-2">
                     <span className="text-base font-medium text-yellow-500 dark:text-white">{modalMessage}</span>
@@ -180,7 +199,7 @@ const ExcelUploader = () => {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
                     <div className="bg-yellow-500 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-                </div>
+                </div>  
                 <div className="mt-8 relative overflow-x-auto">
                     <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
                         <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
