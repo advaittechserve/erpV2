@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import '../css/customerform.css';
-import GenerateRandomId from '../functions/GenerateRandomId';
 import axios from 'axios';
 import StatusModal from '../Components/StatusModal';
 import { uploadCustomerData } from '../functions/customerDataHandler';
@@ -303,7 +302,7 @@ const CustomerForm = () => {
             return;
         }
 
-        let customerId = GenerateRandomId(12);
+        let customerId = document.getElementById('CustomerName').value.replace(/\s+/g, '').toLowerCase();
         const bankId = document.getElementById('BankName').value;
         const bankName = document.getElementById('BankName').value;
         const customerSiteStatus = document.getElementById('CustomerSiteStatus').value;
@@ -316,8 +315,6 @@ const CustomerForm = () => {
                 CustomerId: customerId,
                 CustomerName: customerName,
                 CustomerSiteStatus: customerSiteStatus,
-                StartDate: startDate,
-                EndDate: endDate,
             }];
 
             await uploadCustomerData(customerData);
@@ -330,7 +327,9 @@ const CustomerForm = () => {
             const bankData = {
                 BankId: bankId,
                 BankName: bankName,
+                CustomerId: customerId
             };
+            console.log(bankData)
 
             await uploadBankData(bankData);
             updateStatusMessage('Fetching existing ATM IDs...');
@@ -698,7 +697,7 @@ const CustomerForm = () => {
                         <><hr></hr>
                     {index !== 0 && (
   <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', cursor: 'pointer', color: '#ff0000', fontSize: '1.5rem' }} onClick={() => handleDeleteAtm(index)}>
-    ✖ {/* Cross (×) icon */}
+    ✖  {/* Cross (×) icon */}
   </div>
 )}
 

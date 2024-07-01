@@ -36,13 +36,13 @@ export async function uploadBankData(jsonData) {
                         bankCustomerExists = true;
                     }
                 } catch (error) {
-                    if (error.response && error.response.status === 500) {
+                    if (error.response && error.response.status === 404) {
                         bankCustomerExists = false;
                     } else {
                         throw error; // Rethrow if the error is not a 404
                     }
                 }
-
+               
                 if (!bankCustomerExists) {
 
                     const insertBankCustomerData = {
@@ -55,9 +55,7 @@ export async function uploadBankData(jsonData) {
                     if (insertBankCustomerResponse.status !== 200) {
                         continue;
                     }
-                } else {
-                }
-
+                } 
             } else {
 
                 const insertBankData = {
