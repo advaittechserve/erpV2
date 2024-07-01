@@ -830,15 +830,38 @@ app.post('/api/register', async (req, res) => {
     res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
   }
 });
+// app.post('/api/registeruser/:userId', async (req, res) => {
+//   const userId = req.params.userId;
+//   const { name, username, password, phonenumber, access } = req.body;
+
+//   try {
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     const query = 'UPDATE admin SET name = ?, username = ?, password = ?, phonenumber = ?, access = ? WHERE id = ?';
+
+//     connection.query(query, [name, username, hashedPassword, phonenumber, access, userId], (error, results) => {
+//       if (error) {
+//         console.error('Error updating data in admin table:', error);
+//         return res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+//       }
+
+//       if (results.affectedRows === 0) {
+//         return res.status(404).json({ success: false, error: 'User not found' });
+//       }
+//       res.status(200).json({ success: true, message: 'User details updated successfully' });
+//     });
+//   } catch (error) {
+//     console.error('Error hashing password:', error);
+//     res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+//   }
+// }); 
 app.post('/api/registeruser/:userId', async (req, res) => {
   const userId = req.params.userId;
-  const { name, username, password, phonenumber, access } = req.body;
+  const { name, username, phonenumber, access } = req.body;
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const query = 'UPDATE admin SET name = ?, username = ?, password = ?, phonenumber = ?, access = ? WHERE id = ?';
+    const query = 'UPDATE admin SET name = ?, username = ?, phonenumber = ?, access = ? WHERE id = ?';
 
-    connection.query(query, [name, username, hashedPassword, phonenumber, access, userId], (error, results) => {
+    connection.query(query, [name, username, phonenumber, access, userId], (error, results) => {
       if (error) {
         console.error('Error updating data in admin table:', error);
         return res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
@@ -848,6 +871,56 @@ app.post('/api/registeruser/:userId', async (req, res) => {
         return res.status(404).json({ success: false, error: 'User not found' });
       }
       res.status(200).json({ success: true, message: 'User details updated successfully' });
+    });
+  } catch (error) {
+    console.error('Error updating user details:', error);
+    res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+  }
+});
+app.post('/api/changepassword/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const { newPassword } = req.body;
+
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const query = 'UPDATE admin SET password = ? WHERE username = ?';
+
+    connection.query(query, [hashedPassword, userId], (error, results) => {
+      if (error) {
+        console.error('Error updating password:', error);
+        return res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+      }
+
+      if (results.affectedRows === 0) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+
+      res.status(200).json({ success: true, message: 'Password updated successfully' });
+    });
+  } catch (error) {
+    console.error('Error hashing password:', error);
+    res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+  }
+});
+app.post('/api/changepassword/:username', async (req, res) => {
+  const { username } = req.params;
+  const { newPassword } = req.body;
+
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const query = 'UPDATE admin SET password = ? WHERE username = ?';
+
+    connection.query(query, [hashedPassword, username], (error, results) => {
+      if (error) {
+        console.error('Error updating password:', error);
+        return res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+      }
+
+      if (results.affectedRows === 0) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+
+      res.status(200).json({ success: true, message: 'Password updated successfully' });
     });
   } catch (error) {
     console.error('Error hashing password:', error);

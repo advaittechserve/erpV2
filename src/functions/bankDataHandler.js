@@ -14,7 +14,7 @@ export async function uploadBankData(jsonData) {
             if (existingBank) {
                 const bankId = existingBank.BankId;
 
-                // Check if bank data needs to be updated
+                // Check if bank data needs to be updated   
                 if (existingBank.BankName !== BankName) {
 
                     const updateBankData = {

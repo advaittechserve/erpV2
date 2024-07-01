@@ -13,9 +13,7 @@ const EditUser = () => {
     const [name, setName] = useState('');
     const [username, setUsername] = useState('');
     const [phonenumber, setPhonenumber] = useState('');
-    const [password, setPassword] = useState('');
     const [access, setAccess] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [userRole, setUserRole] = useState(null); // State to hold user's role
 
@@ -46,14 +44,11 @@ const EditUser = () => {
                 if (!response.ok) {
                     throw new Error('Failed to fetch user details');
                 }
-            const userData = await response.json();
+                const userData = await response.json();
                 setName(userData.name);
                 setUsername(userData.username);
                 setPhonenumber(userData.phonenumber);
                 setAccess(userData.access);
-                setPassword(userData.password);
-                setConfirmPassword(userData.password);
-                // Assuming you don't want to prepopulate password fields
             } catch (error) {
                 setError('Failed to fetch user details');
                 console.error('User details fetch error:', error);
@@ -63,35 +58,14 @@ const EditUser = () => {
         fetchUserData();
     }, [userId]);
 
-    // useEffect(() => {
-    //     // Fetch user role from server or localStorage
-    //     const fetchUserRole = async () => {
-    //         try {
-    //             // Replace with actual logic to fetch user role
-    //             const role = await getUserRole(userId); // Example function to fetch role
-    //             setUserRole(role);
-    //         } catch (error) {
-    //             console.error('Error fetching user role:', error);
-    //         }
-    //     };
-
-    //     fetchUserRole();
-    // }, [userId]);
-
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        if (password !== confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
 
         const formData = {
             name,
             username,
             phonenumber,
             access,
-            password,
         };
 
         try {
@@ -104,14 +78,13 @@ const EditUser = () => {
             });
 
             if (!response.ok) {
-                throw new Error('Registration failed');
+                throw new Error('Update failed');
             }
 
-            // Assuming you have a toast notification library like 'toast' available
-            toast.success('Successfully Updated!');
+            toast.success('User details updated successfully!');
         } catch (error) {
-            setError('Registration failed');
-            console.error('Registration error:', error);
+            setError('Update failed');
+            console.error('Update error:', error);
         }
     };
 
@@ -138,20 +111,12 @@ const EditUser = () => {
                     <div className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
                         <div className="relative">
                             <label htmlFor="access" className="label_form">Access</label>
-                            <select value={access} onChange={userRole} name="access" id="access" className="form-input" disabled={userRole === 'Employee' || userRole === 'Admin'} required>
+                            <select value={access} onChange={(e) => setAccess(e.target.value)} name="access" id="access" className="form-input" disabled={userRole === 'Employee' || userRole === 'Admin'} required>
                                 <option value="">Select Role</option>
                                 <option value="SuperAdmin">Super Admin</option>
                                 <option value="Admin">Admin</option>
                                 <option value="Employee">Employee</option>
                             </select>
-                        </div>
-                        <div className="relative">
-                            <label htmlFor="password" className="label_form">Password</label>
-                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} name="password" id="password" className="form-input" placeholder="••••••••" required />
-                        </div>
-                        <div className="relative">
-                            <label htmlFor="confirm-password" className="label_form">Confirm password</label>
-                            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} name="confirm-password" id="confirm-password" className="form-input" placeholder="••••••••" required />
                         </div>
                     </div>
                     {error && <div className="error-message">{error}</div>}
