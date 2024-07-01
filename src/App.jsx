@@ -29,8 +29,16 @@ const isAuthenticated = () => {
   return !!token;
 };
 const token = localStorage.getItem("token");
-const decoded = jwtDecode(token);
-const userId = decoded.username;
+let userId;
+
+try {
+  if (token) {
+    const decodedToken = jwtDecode(token);
+    userId = decodedToken.username;
+  } 
+} catch (error) {
+  console.error("Failed to decode token:", error.message);
+}
 
 const App = () => {
   const [userAccess, setUserAccess] = useState(null);

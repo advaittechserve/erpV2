@@ -1000,7 +1000,7 @@ app.get('/bank_customerdetails', (req, res) => {
 
   // Base query to join bankid_customerid and banks tables
   let query = `
-    SELECT bc.*, b.BankName, b.AtmCount
+    SELECT bc.*, b.BankName
     FROM bankid_customerid bc
     JOIN bank b ON bc.BankId = b.BankId
   `;
@@ -1038,7 +1038,6 @@ app.get('/bank_customerdetails', (req, res) => {
     }
   });
 });
-
 app.get('/atm', (req, res) => {
   const { AtmId, CustomerId , BankId } = req.query;
 
