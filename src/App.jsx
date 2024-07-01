@@ -23,6 +23,7 @@ import TestUpload from "./Components/test_upload";
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { useState, useEffect } from "react";
+import PasswordChangeForm from "./Components/PasswordChangeForm";
 
 const isAuthenticated = () => {
   const token = localStorage.getItem("token");
@@ -157,15 +158,26 @@ const App = () => {
         <Route
           path="/UserSettings"
           element={
-            isAuthenticated() ?(
+            isAuthenticated() ? (
               userAccess === "SuperAdmin" ? (
                 <Layout>
                   <UserProfile />
                 </Layout>
               ) : (
-              <Navigate to={`/EditUser/${userIdtemp}`}  />
-               
+                <Navigate to={`/EditUser/${userIdtemp}`} />
               )
+            ) : (
+              <Navigate to="/Login" replace />
+            )
+          }
+        />
+        <Route
+          path="/PasswordChangeForm"
+          element={
+            isAuthenticated() ? (
+              <Layout>
+                <PasswordChangeForm />
+              </Layout>
             ) : (
               <Navigate to="/Login" replace />
             )

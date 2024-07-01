@@ -186,13 +186,13 @@ const ServicesForm = () => {
                 <p className="customer-details-heading">Services Details</p>
                 <div className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
 
-                    <input
+                    {/* <input
                         type="text"
                         value={serviceId}
                         className="dropdown"
                         placeholder="Service ID (autofill)"
                         disabled
-                    />
+                    /> */}
                     <select
                         value={serviceType}
                         onChange={(e) => handleServiceTypeChange(e.target.value)}
@@ -214,7 +214,13 @@ const ServicesForm = () => {
                         className="dropdown"
                         placeholder="Cost to Client"
                     />
-
+<input
+                        type="number"
+                        value={payOut}
+                        onChange={(e) => setpayOut(e.target.value)}
+                        className="dropdown"
+                        placeholder="Payout"
+                    />
 
                 </div>
                 <div className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
@@ -295,13 +301,6 @@ const ServicesForm = () => {
                         />
                         <span className="text-gray-800">Select all atms</span>
                     </label>
-                    <input
-                        type="number"
-                        value={payOut}
-                        onChange={(e) => setpayOut(e.target.value)}
-                        className="dropdown"
-                        placeholder="Payout"
-                    />
                 </div>
 
                 {validationError && <div className="error-message">{validationError}</div>}

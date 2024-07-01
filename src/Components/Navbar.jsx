@@ -11,9 +11,11 @@ const Navbar = () => {
   const token = localStorage.getItem("token");
   const decoded = jwtDecode(token);
   const userId = decoded.username;
+  
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
+
 
   const fetchData = async (userId) => {
     try {
@@ -35,6 +37,10 @@ const handleEditUser = async () => {
     } catch (error) {
         console.error("Error in handleEditUser:", error);
     }
+};
+
+const handleChangePassword = () => {
+  navigate("/PasswordChangeForm"); // Navigate to the password change page
 };
 
   const toggleUserMenu = () => {
@@ -140,7 +146,14 @@ const handleEditUser = async () => {
                         Update Profile
                       </a>
                     </li>
-
+                    <li>
+                      <a
+                        onClick={handleChangePassword}
+                        className="flex w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >   
+                        Change Password
+                      </a>
+                    </li>
                     <li>
                       <button
                         onClick={handleSignOut}
