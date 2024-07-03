@@ -11,7 +11,6 @@ import "../css/dashboard.css";
 HighchartsExporting(Highcharts);
 HighchartsFullscreen(Highcharts);
 const Dashboard = () => {
-  const [chartOptions, setChartOptions] = useState(null);
   const [data, setData] = useState([]);
   const [revenue, setRevenue] = useState(0);
   const [customerCount, setCustomerCount] = useState(0);
@@ -37,7 +36,7 @@ const Dashboard = () => {
                 timestamps.push({
                   timestamp: new Date(tempDate).getTime(),
                   costToClient: item.CostToClient,
-                  PayOut : item.PayOut
+                  PayOut: item.PayOut
                 });
                 tempDate.setMonth(tempDate.getMonth() + 1);
               }
@@ -45,7 +44,7 @@ const Dashboard = () => {
               timestamps.push({
                 timestamp: endDate,
                 costToClient: item.CostToClient,
-                PayOut : item.PayOut
+                PayOut: item.PayOut
               });
             }
 
@@ -54,9 +53,8 @@ const Dashboard = () => {
           .flat()
           .sort((a, b) => a.timestamp - b.timestamp); // Sort by timestamp
 
-        const data = sortedData.map(item => [item.timestamp, item.costToClient-item.PayOut]);
+        const data = sortedData.map(item => [item.timestamp, item.costToClient - item.PayOut]);
 
-        // Create the chart with the sorted data
         Highcharts.stockChart('container', {
           accessibility: {
             typeDescription: revenue
@@ -76,7 +74,7 @@ const Dashboard = () => {
             overscroll: 2678400000 // 1 month
           },
           rangeSelector: {
-            selected: 3,
+            selected: 2,
             buttons: [{
               type: 'month',
               count: 3,
@@ -103,8 +101,8 @@ const Dashboard = () => {
             }]
           },
           series: [{
-            name: 'Cost to Client',
-            color: '#ffbf00',
+            name: 'Revenue per day',
+            color: '#D7C72C',
             data: data,
             id: 'dataseries',
             tooltip: {
@@ -183,10 +181,10 @@ const Dashboard = () => {
                 <div>
                   <div className="card-title">₹ {revenue}</div>
                   <div className="card-subtitle">Revenue for <select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))}>
-                      {Array.from({ length: 12 }, (_, i) => (
-                        <option key={i + 1} value={i + 1}>{new Date(0, i).toLocaleString('en', { month: 'long' })}</option>
-                      ))}
-                    </select>
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>{new Date(0, i).toLocaleString('en', { month: 'long' })}</option>
+                    ))}
+                  </select>
                     <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
                       {Array.from({ length: 10 }, (_, i) => (
                         <option key={i} value={new Date().getFullYear() - i}>{new Date().getFullYear() - i}</option>
@@ -250,7 +248,7 @@ const Dashboard = () => {
           <h2 className="mr-5 text-lg font-medium truncate">Revenue Chart</h2>
         </div>
         <div className="intro-y box p-5 mt-5">
-          <HighchartsReact highcharts={Highcharts} options={chartOptions} />
+          <HighchartsReact highcharts={Highcharts}/>
           <div id="container"></div>
         </div>
       </div>

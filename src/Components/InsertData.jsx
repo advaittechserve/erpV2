@@ -8,7 +8,7 @@ import StatusModal from './StatusModal';
 import { Margin } from '@mui/icons-material';
 import MUIDataTable from "mui-datatables";
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import socketIOClient from 'socket.io-client';
+import io from 'socket.io-client';
 
 
 const ExcelUploader = () => {
@@ -107,13 +107,15 @@ const ExcelUploader = () => {
     //         }
 
     useEffect(() => {
-        const socket = socketIOClient('http://localhost:5000');
+        const socket = io('http://localhost:5000');
+        console.log(socket.id)
         socket.on('uploadProgress', (percentCompleted) => {
           setUploadProgress(percentCompleted);
         });
     
         return () => socket.disconnect();
       }, []);
+
     const handleFileSubmit = async () => {
         if (!selectedFile) {
           alert('Please select a file');
@@ -130,12 +132,7 @@ const ExcelUploader = () => {
           const response = await axios.post('http://localhost:5000/api/uploadbulk', formData, {
             headers: {
               'Content-Type': 'multipart/form-data'
-            },
-            onUploadProgress: (progressEvent) => {
-                const percentCompleted = Math.round((progressEvent.loaded) / progressEvent.total);
-                console.log('Axios upload progress:', percentCompleted);
-                setUploadProgress(percentCompleted); // Update progress directly from Axios event
-              }
+            }
           });
       
           setModalMessage(response.data.message); // Assuming response contains a message
@@ -163,7 +160,15 @@ const ExcelUploader = () => {
         const fetchUploadedFiles = async () => {
             try {
                 const response = await axios.get('http://localhost:5000/api/getfiledata');
-                setUploadedFiles(response.data);
+                const filesData = response.data.map(file => {
+                  const istTime = new Date(file.uploadedTime).toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+                  return {
+                      ...file,
+                      uploadedTime: istTime
+                  };
+              });
+              filesData.sort((a, b) => new Date(b.uploadedTime) - new Date(a.uploadedTime));
+              setUploadedFiles(filesData);
             } catch (error) {
                 console.error('Error fetching uploaded files:', error);
             }
