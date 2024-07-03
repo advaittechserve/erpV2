@@ -20,6 +20,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     setIsFormMenuOpen(!isFormMenuOpen);
   };
 
+    const navigate = useNavigate();
+    const [isFormMenuOpen, setIsFormMenuOpen] = useState(false);
+
     const menuItems = [
         {
             title: "Dashboard",
@@ -70,7 +73,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
 
     ];
-
+    const handleMenuItemClick = (link) => {
+        navigate(link);
+    };
 
 
   return (
@@ -95,7 +100,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     }`}
                     onClick={toggleFormMenu}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center mb-1">
                       <svg
                         className="flex-shrink-0 w-5 h-8 text-white transition duration-75 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white"
                         aria-hidden="true"
@@ -124,7 +129,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     </svg>
                   </button>
                   {isFormMenuOpen && (
-                    <ul className={`py-2 space-y-2"${isFormMenuOpen ? "block" : "hidden"}`}>
+                    <ul className={`py-2 space-y-2 my-1"${isFormMenuOpen ? "block" : "hidden"}`}>
                       {menuItem.children.map((childItem, childIndex) => (
                         <li key={childIndex}>
                           <button

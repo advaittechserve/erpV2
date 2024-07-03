@@ -259,7 +259,7 @@ const ExcelUploader = () => {
                             />
                         </div>
                         <div>
-                            <p className="mb-2 text-sm">Click to upload or drag and drop</p>
+                            <p className="mb-2 text-md font-semibold">Click to upload or drag and drop</p>
                             {fileName && <p>{fileName}</p>}
                             <p className="text-xs">Excel Files (.XLS , .XLSX)</p>
                         </div>
@@ -267,7 +267,7 @@ const ExcelUploader = () => {
                     </label>
                 </div>
                 <button className="submit-btn" onClick={handleFileSubmit} disabled={isUploading}>
-                    {isUploading ? 'Uploading...' : 'Upload File'}
+                    {isUploading ? 'Uploading...' : 'Submit File'}
                 </button>
             
                 <button 
