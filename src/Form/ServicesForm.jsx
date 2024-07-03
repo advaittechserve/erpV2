@@ -1,8 +1,12 @@
+import React from 'react';
 import { useState, useEffect } from 'react';
 import '../css/customerform.css';
+import "../css/toastStyles.css";
+import "react-toastify/dist/ReactToastify.css";
 import axios from 'axios';
 import Select from 'react-select';
-import StatusModal from '../Components/StatusModal';
+import { ErrorOutline } from '@mui/icons-material';
+//import StatusModal from '../Components/StatusModal';
 
 const ServicesForm = () => {
     const [serviceId, setServiceId] = useState('');
@@ -24,9 +28,10 @@ const ServicesForm = () => {
     const [showModal, setShowModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
     const [isUploading, setIsUploading] = useState(false);
+    const [confirmAction, setConfirmAction] = useState(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     
-
 
     // Mapping of service types to service IDs
     const serviceIdMap = {
@@ -118,7 +123,7 @@ const ServicesForm = () => {
     const validateDates = () => {
         if (startDate && endDate) {
             if (new Date(startDate) >= new Date(endDate)) {
-                setValidationError('end date must be greater that start date!');
+                setValidationError('End date must be greater than start date!');
                 return false;
             }
         }
@@ -142,42 +147,107 @@ const ServicesForm = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         const isValid = validateDates();
-
+    
         if (isValid) {
             setShowModal(true);
-            setIsUploading(true);
-
+    
             try {
+                let hasError = false;
+    
                 for (const atmId of selectedAtmIds) {
-                    const formData = {
-                        servicesDetails: [{
-                            ServiceId: serviceId,
-                            ServiceType: serviceType,
-                            TakeoverDate: startDate,
-                            HandoverDate: endDate,
-                            CostToClient: costToClient,
+                    // Check if service already exists for this ATM ID and Service Type
+                    const response = await axios.get('http://localhost:5000/services', {
+                        params: {
                             AtmId: atmId,
-                            PayOut: payOut
-                        }]
-                    };
-                    setModalMessage(`Uploading services details for ${atmId}...`);
-                    await delay(1000);
-                    await axios.post('http://localhost:5000/api/insertServicesData', formData);
-
+                            ServiceId: serviceType,
+                        },
+                    });
+    
+                    if (response.data && response.data.length > 0) {
+                        // Service already exists for this ATM ID and Service Type, prompt for update
+                        const existingService = response.data[0];
+                        let message = `Service already exists for ATM ID ${atmId} with Service Type ${serviceType}.`;
+                        if (existingService.TakeoverDate) {
+                            message += `<br /> Start Date: ${existingService.TakeoverDate}`;
+                        }
+                        if (existingService.HandoverDate) {
+                            message += `, End Date: ${existingService.HandoverDate}`;
+                        }
+                        setModalMessage(`${message} <br /> Do you want to update it?`);
+                        setConfirmAction(() => async () => {
+                            // Update service
+                            const updateData = {
+                                ServiceId: existingService.ServiceId,
+                                ServiceType: serviceType,
+                                TakeoverDate: startDate,
+                                HandoverDate: endDate,
+                                CostToClient: costToClient,
+                                AtmId: atmId,
+                                PayOut: payOut
+                            };
+                            await delay(1000);
+                            await axios.post('http://localhost:5000/api/updateServicesData', updateData);
+                            setModalMessage('Service updated successfully');
+                            setShowModal(false);
+                        });
+                        setIsDeleteModalOpen(true);
+                        hasError = true;
+                        break;
+                    } else {
+                        // Service does not exist for this ATM ID and Service Type, prompt for insert
+                        const formData = {
+                            servicesDetails: [{
+                                ServiceId: serviceId,
+                                ServiceType: serviceType,
+                                TakeoverDate: startDate,
+                                HandoverDate: endDate,
+                                CostToClient: costToClient,
+                                AtmId: atmId,
+                                PayOut: payOut
+                            }]
+                        };
+                        setModalMessage(`Do you want to insert service details for ATM ID ${atmId}?`);
+                        setConfirmAction(() => async () => {
+                            setModalMessage(`Uploading service details for ATM ID ${atmId}...`);
+                            await delay(1000);
+                            await axios.post('http://localhost:5000/api/insertServicesData', formData);
+                            setModalMessage('Service details submitted successfully');
+                            setShowModal(false);
+                        });
+                        setIsDeleteModalOpen(true);
+                        hasError = true;
+                        break;
+                    }
                 }
-
-                setModalMessage('Services details submitted successfully');
+    
+                if (!hasError) {
+                    setModalMessage('Service details submitted successfully');
+                }
             } catch (error) {
-                setModalMessage('Error inserting Services details');
+                setModalMessage('Error inserting or updating service details');
                 console.error('Error submitting form:', error);
             } finally {
                 setIsUploading(false);
             }
         }
     };
+    
+    
 
     const handleCloseModal = () => {
         setShowModal(false);
+        setConfirmAction(null);
+    };
+
+    const confirmDeletion = async () => {
+        if (confirmAction) {
+            await confirmAction();
+        }
+        setIsDeleteModalOpen(false);
+    };
+
+    const cancelDeletion = () => {
+        setIsDeleteModalOpen(false);
     };
 
     return (
@@ -303,16 +373,59 @@ const ServicesForm = () => {
                     </label>
                 </div>
 
+                <button type="submit" className="submit-btn">Submit</button>
+
+                {isDeleteModalOpen && (
+            <div
+              id="delete-modal"
+              tabIndex="-1"
+              aria-hidden="true"
+              className="fixed inset-0 overflow-y-auto"
+            >
+              <div className="flex items-center justify-center min-h-screen px-4">
+                <div
+                  className="fixed inset-0 transition-opacity"
+                  aria-hidden="true"
+                  onClick={cancelDeletion}
+                >
+                  <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+                </div>
+                <div className="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all max-w-lg sm:w-full">
+                  <div className="p-20">
+                    <div className="">
+                      <div className="mt-3 text-center">
+                        <ErrorOutline
+                          style={{ color: "red", fontSize: "2rem" }}
+                        />
+                        <h2 className="text-xl" id="modal-title" dangerouslySetInnerHTML={{ __html: modalMessage }} />
+                       
+                        <div className="mt-4 flex justify-center space-x-4">
+                          <button
+                            onClick={confirmDeletion}
+                            className="submit-btn"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={cancelDeletion}
+                            className="cancel-btn"
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
                 {validationError && <div className="error-message">{validationError}</div>}
 
-                <button type="submit" className="submit-btn">Submit</button>
+                
+
             </form>
-            <StatusModal
-                show={showModal}
-                handleClose={handleCloseModal}
-                message={modalMessage}
-                isUploading={isUploading}
-            />
         </div>
     );
 };

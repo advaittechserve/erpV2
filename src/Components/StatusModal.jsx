@@ -15,7 +15,7 @@ const StatusModal = ({ show, handleClose, message, isUploading }) => {
                             <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full sm:mx-0 sm:h-10 sm:w-10">
                                 {/* Icon */}
                                 {isUploading ? (
-                                    <svg className=" text-yellow-600 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg className=" text-yellow-600 animate-pulse" f ill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v4a1 1 0 002 0V7zm-1 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" clipRule="evenodd" />
                                     </svg>
                                 ) : (
@@ -29,8 +29,8 @@ const StatusModal = ({ show, handleClose, message, isUploading }) => {
                                     {isUploading ? 'Uploading....' : 'Done!'}
                                 </h3>
                                 <div className="mt-2">
-                                    <p className={`text-sm text-gray-500 animate-fadeIn ${isUploading ? 'animate-pulse' : ''}`}>
-                                        {message}
+                                    <p className={`text-sm text-gray-500 animate-fadeIn ${isUploading ? 'animate-pulse' : ''}`} dangerouslySetInnerHTML={{ __html: message }} >
+                                        {/* {message} */}
                                     </p>
                                 </div>
                             </div>
