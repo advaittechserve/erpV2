@@ -9,7 +9,7 @@ async function uploadCustomerData(jsonData) {
 
 
       try {
-        const checkResponseCustomer = await axios.get(`http://localhost:5000/customer?name=${CustomerName}`);
+        const checkResponseCustomer = await axios.get(`http://localhost:5000/customer?Id=${CustomerId}`);
 
         if (checkResponseCustomer.status !== 200) {
           console.error(`Error fetching customer data: ${checkResponseCustomer.data}`);
