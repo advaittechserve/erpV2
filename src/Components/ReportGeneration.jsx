@@ -284,9 +284,10 @@ function ReportGeneration() {
           const existingEntry = cumulativeData.find(entry => entry.Month === monthString && entry.ServiceId === item.ServiceId);
 
           const costToClient = parseFloat(item.CostToClient);
-          const payouts = parseFloat(item.Payouts) || 0; // Default to 0 if payouts are not defined
+          const payouts = parseFloat(item.PayOut) || 0; // Default to 0 if payouts are not defined
 
           const netRevenue = costToClient - payouts;
+          console.log(netRevenue);
 
           if (existingEntry) {
             existingEntry.NetRevenue += netRevenue;
