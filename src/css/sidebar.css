@@ -6,3 +6,14 @@
 .sidebar-list:hover{
     background-color: #D7C72C;
 }
+
+.sidebar-list.active {
+    /* Active menu item styles */
+    background-color: #D7C72C;
+    color: #000; /* Example color for active state */
+     }
+
+     .svgcss.active {
+        /* Active menu item styles */
+         color: #000; /* Example color for active state */
+         }
