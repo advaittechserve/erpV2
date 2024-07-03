@@ -50,6 +50,7 @@
     "react-toast-notifications": "^2.5.1",
     "react-toastify": "^10.0.5",
     "read-excel-file": "^5.8.1",
+    "socket.io": "^4.7.5",
     "socket.io-client": "^4.7.5",
     "xlsx": "^0.18.5"
   },

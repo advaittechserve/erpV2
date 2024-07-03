@@ -24,6 +24,8 @@ import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 import { useState, useEffect } from "react";
 import PasswordChangeForm from "./Components/PasswordChangeForm";
+import ScrollToTop from "./Components/ScrollToTop";
+
 
 const isAuthenticated = () => {
   const token = localStorage.getItem("token");
@@ -68,6 +70,7 @@ const App = () => {
 
   return (
     <Router>
+      <ScrollToTop />
       <Routes>
         <Route path="/Login" element={<Login />} />
         <Route path="/Register" element={<Register />} />

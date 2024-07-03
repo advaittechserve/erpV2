@@ -234,7 +234,6 @@ const DetailsTable = () => {
         },
       },
     });
-console.log(userRole);
   return (
     <div className="container-form">
       <div className="customer-details">
