@@ -1,8 +1,8 @@
 const { uploadCustomerData } = require('./backendfunctions/customerDataHandler.js');
-const {uploadBankData} = require('./backendfunctions/bankDataHandler.js');
-const {uploadAtmData} = require('./backendfunctions/atmDataHandler.js');
-const {uploadEmployeeData} = require('./backendfunctions/employeeDataHandler.js');
-const {uploadServiceData} = require('./backendfunctions/serviceDataHandler.js');
+const { uploadBankData } = require('./backendfunctions/bankDataHandler.js');
+const { uploadAtmData } = require('./backendfunctions/atmDataHandler.js');
+const { uploadEmployeeData } = require('./backendfunctions/employeeDataHandler.js');
+const { uploadServiceData } = require('./backendfunctions/serviceDataHandler.js');
 
 require('dotenv').config();
 const express = require('express');
@@ -31,7 +31,7 @@ const io = socketIo(server, {
     credentials: true
   }
 });
-let socketId='';
+let socketId = '';
 
 
 const currentDate = new Date();
@@ -72,7 +72,7 @@ if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
 io.on('connection', (socket) => {
-  socketId=socket.id;
+  socketId = socket.id;
   socket.on('disconnect', () => {
   });
   // Handle events or store `socket.id` for future use
@@ -82,7 +82,7 @@ app.post('/api/newUploadLog', (req, res) => {
   const timestamp = new Date().toISOString().replace(/:/g, '-');
   const logFileName = `upload-${timestamp}.txt`;
   currentLogFile = path.join(__dirname, 'loguploads', logFileName);
-  
+
   fs.writeFile(currentLogFile, '', (err) => {
     if (err) {
       console.error('Error creating log file:', err);
@@ -116,7 +116,7 @@ app.post('/api/log', (req, res) => {
 //     const sheetName = workbook.SheetNames[0]; // Get the first sheet name
 //     const worksheet = workbook.Sheets[sheetName]; // Get the worksheet
 //     const jsonData = XLSX.utils.sheet_to_json(worksheet); // Convert sheet to JSON
-    
+
 //     const sequentialFunctions = [
 //       uploadCustomerData,
 //       uploadBankData,
@@ -183,8 +183,7 @@ app.post('/api/log', (req, res) => {
 // });
 
 app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
- 
-  console.log('Received socket ID:', socketId);
+
   try {
     const file = req.file;
     if (!file) {
@@ -197,7 +196,6 @@ app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
 
     const totalSteps = 5;
     let completedSteps = 0;
-    console.log(socketId)
     const emitProgress = () => {
       const percentCompleted = Math.round((completedSteps / totalSteps) * 100);
       io.to(socketId).emit('uploadProgress', percentCompleted);
@@ -261,7 +259,7 @@ app.post('/api/uploadfiledata', (req, res) => {
       console.error('Error inserting upload file data:', err);
       res.status(500).json({ error: 'Error inserting upload file data' });
     } else {
-  
+
       res.status(201).json({ message: 'Uploaded file data inserted successfully' });
     }
   });
@@ -391,7 +389,7 @@ app.post('/api/insertBankData', async (req, res) => {
               return res.status(500).send('Error committing transaction');
             });
           } else {
-           
+
             res.status(200).send('Bank data inserted successfully');
           }
         });
@@ -454,7 +452,7 @@ app.post('/api/insertBankIdCustomerIdData', async (req, res) => {
               return res.status(500).send('Error committing transaction');
             });
           } else {
-    
+
             res.status(200).send('Bank-customer data inserted successfully');
           }
         });
@@ -492,7 +490,7 @@ app.post('/api/updateBankData', async (req, res) => {
       }
     }
 
-    const bankQuery = 'UPDATE bank SET BankName = ? WHERE BankId = ?';  
+    const bankQuery = 'UPDATE bank SET BankName = ? WHERE BankId = ?';
 
     connection.beginTransaction(async (err) => {
       if (err) {
@@ -517,7 +515,7 @@ app.post('/api/updateBankData', async (req, res) => {
               return res.status(500).send('Error updating bank data');
             });
           } else {
-        
+
             res.status(200).send('Bank data updated successfully');
           }
         });
@@ -648,7 +646,7 @@ app.post('/api/insertEmployeeData', async (req, res) => {
               return res.status(500).send('Error committing transaction');
             });
           } else {
-       
+
             res.status(200).send('Employee data inserted successfully');
           }
         });
@@ -711,7 +709,7 @@ app.post('/api/insertEmployeeIdAtmIdData', async (req, res) => {
               return res.status(500).send('Error committing transaction');
             });
           } else {
-           
+
             res.status(200).send('Employee-ATM data inserted successfully');
           }
         });
@@ -786,7 +784,7 @@ app.post('/api/updateEmployeeData', async (req, res) => {
               return res.status(500).send('Error updating employee data');
             });
           } else {
-  
+
             res.status(200).send('Employee data updated successfully');
           }
         });
@@ -870,13 +868,13 @@ app.post('/api/register', async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const access = 'employee';
-    
+
     const query = 'INSERT INTO admin (name, username, password, phonenumber, access, session_intime, session_outtime) VALUES (?,?,?,?,?,?,?)';
     connection.query(query, [name, username, hashedPassword, phonenumber, access, session_intime, session_outtime], (error, results) => {
       if (error) {
         console.error('Error inserting data into admin table:', error);
         res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
-    }else {
+      } else {
         res.status(200).json({ success: true, message: 'Registration successful' });
       }
     });
@@ -1054,9 +1052,9 @@ app.post('/api/insertInvoiceData', (req, res) => {
       res.status(500).json({ error: 'Error inserting invoice data' });
       return;
     }
-      res.status(200).json({ message: 'Invoice data inserted successfully' });
-    });
+    res.status(200).json({ message: 'Invoice data inserted successfully' });
   });
+});
 // Middleware to verify JWT
 function verifyToken(req, res, next) {
   const token = req.headers['authorization'];
@@ -1084,7 +1082,7 @@ app.get('/api/getfiledata', (req, res) => {
   });
 });
 app.get('/customer', (req, res) => {
-  const { name ,Id } = req.query;
+  const { name, Id } = req.query;
   if (name) {
     connection.query(`SELECT * FROM customer WHERE CustomerName LIKE '%${name}%'`, (error, results) => {
       if (error) {
@@ -1095,7 +1093,7 @@ app.get('/customer', (req, res) => {
       }
     });
   }
-  else if(Id) {
+  else if (Id) {
     connection.query(`SELECT * FROM customer WHERE CustomerId LIKE '%${Id}%'`, (error, results) => {
       if (error) {
         console.error('Error fetching customers:', error);
@@ -1179,7 +1177,7 @@ app.get('/bank_customerdetails', (req, res) => {
   });
 });
 app.get('/atm', (req, res) => {
-  const { AtmId, CustomerId , BankId } = req.query;
+  const { AtmId, CustomerId, BankId } = req.query;
 
   let query = 'SELECT * FROM atm';
   const queryParams = [];
@@ -1344,26 +1342,25 @@ app.get('/atm_servicesdetails', (req, res) => {
   });
 });
 app.get('/admindetails', (req, res) => {
-  const {username} = req.query;
-  if(username)
-    {
-      const query = 'SELECT * FROM admin WHERE username = ?';
-      connection.query(query, [username], (error, results) => {
-        if (error) {
-          console.error('Error fetching admin details:', error);
-         // return res.status(500).json({ error: 'Internal server error' });
-        }
-        return res.json(results);
-        //console.log(results);
-      });
-    }
-    else{
-      
-  connection.query('SELECT * FROM admin', (error, results) => {
-    if (error) throw error;
-    res.json(results);
-  });
-}
+  const { username } = req.query;
+  if (username) {
+    const query = 'SELECT * FROM admin WHERE username = ?';
+    connection.query(query, [username], (error, results) => {
+      if (error) {
+        console.error('Error fetching admin details:', error);
+        // return res.status(500).json({ error: 'Internal server error' });
+      }
+      return res.json(results);
+      //console.log(results);
+    });
+  }
+  else {
+
+    connection.query('SELECT * FROM admin', (error, results) => {
+      if (error) throw error;
+      res.json(results);
+    });
+  }
 });
 app.get('/userdetails/:userId', (req, res) => {
   const userId = req.params.userId;

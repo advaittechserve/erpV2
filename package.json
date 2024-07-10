@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@csvbox/react": "^1.1.11",
+    "@emailjs/browser": "^4.3.3",
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@importok/react": "^0.10.10",
@@ -46,6 +47,7 @@
     "react-dom": "^18.3.1",
     "react-lottie": "^1.2.4",
     "react-router-dom": "^6.24.0",
+    "react-scroll-parallax": "^3.4.5",
     "react-select": "^5.8.0",
     "react-toast-notifications": "^2.5.1",
     "react-toastify": "^10.0.5",
