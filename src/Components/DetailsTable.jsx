@@ -244,8 +244,8 @@ const DetailsTable = () => {
           </div>
           <h2 className="mr-5 text-lg font-medium truncate"></h2>
         </div>
-        <div className="mt-1">
-          <ThemeProvider theme={getMuiTheme()}>
+        <div className=" customer-table mt-1" id='customer-table'>
+          <ThemeProvider theme={getMuiTheme()} >
             <MUIDataTable
               data={data}
               columns={columns}

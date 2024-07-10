@@ -139,20 +139,20 @@ const handleChangePassword = () => {
                   </div>
                   <ul className="py-2" aria-labelledby="user-menu-button">
                     <li>
-                      <a
+                      <button
                         onClick={handleEditUser}
                         className="flex w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 "
                       >
                         Update Profile
-                      </a>
+                      </button>
                     </li>
                     <li>
-                      <a
+                      <button
                         onClick={handleChangePassword}
                         className="flex w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >   
                         Change Password
-                      </a>
+                      </button>
                     </li>
                     <li>
                       <button

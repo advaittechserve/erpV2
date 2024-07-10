@@ -15,7 +15,7 @@ const Dashboard = () => {
   const [revenue, setRevenue] = useState(0);
   const [customerCount, setCustomerCount] = useState(0);
   const [monthOnMonthGrowth, setMonthOnMonthGrowth] = useState(0);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // Default to current month
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // Default to current month
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
@@ -23,37 +23,105 @@ const Dashboard = () => {
       try {
         const response = await axios.get("http://localhost:5000/services");
         const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+        const previousYear = currentYear - 1;
         const sortedData = response.data
           .map(item => {
             const startDate = new Date(item.TakeoverDate).getTime();
             const endDate = item.HandoverDate ? new Date(item.HandoverDate).getTime() : currentDate.getTime();
             let timestamps = [];
+            let tempDate = new Date(startDate);
 
-            // If HandoverDate is null, generate monthly timestamps from TakeoverDate to current date
-            if (!item.HandoverDate) {
-              let tempDate = new Date(item.TakeoverDate);
-              while (tempDate <= currentDate) {
-                timestamps.push({
-                  timestamp: new Date(tempDate).getTime(),
-                  costToClient: item.CostToClient,
-                  PayOut: item.PayOut
-                });
-                tempDate.setMonth(tempDate.getMonth() + 1);
-              }
-            } else {
+            while (tempDate <= endDate) {
               timestamps.push({
-                timestamp: endDate,
+                timestamp: new Date(tempDate).getTime(),
                 costToClient: item.CostToClient,
                 PayOut: item.PayOut
               });
+              tempDate.setMonth(tempDate.getMonth() + 1); 
             }
 
             return timestamps;
           })
           .flat()
-          .sort((a, b) => a.timestamp - b.timestamp); // Sort by timestamp
+          .sort((a, b) => a.timestamp - b.timestamp);
+        // Sort by timestamp
 
         const data = sortedData.map(item => [item.timestamp, item.costToClient - item.PayOut]);
+
+        const aggregatedData = {};
+        sortedData.forEach(item => {
+          const timestamp = new Date(item.timestamp);
+          const year = timestamp.getFullYear();
+          const month = timestamp.getMonth();
+
+          const key = `${year}-${month}`;
+          if (year < currentYear || (year === currentYear && month < currentMonth)) {
+            if (aggregatedData[key]) {
+              aggregatedData[key].revenue += (item.costToClient - item.PayOut);
+            } else {
+              aggregatedData[key] = {
+                year,
+                month,
+                revenue: item.costToClient - item.PayOut
+              };
+            }
+          }
+        });
+
+        const allYearsData = Object.values(aggregatedData).reduce((acc, item) => {
+          if (!acc[item.year]) {
+            acc[item.year] = [];
+          }
+          acc[item.year].push({
+            x: Date.UTC(item.year, item.month, 1),
+            y: item.revenue
+          });
+          return acc;
+        }, {});
+
+        const currentYearData = [];
+        const prevYearData = [];
+
+        Object.keys(allYearsData).forEach(year => {
+          allYearsData[year].forEach((item, index) => {
+            currentYearData.push(item);
+            if (allYearsData[year - 1] && allYearsData[year - 1][index]) {
+              const prevYearItem = allYearsData[year - 1][index];
+              const prevYearDate = new Date(prevYearItem.x);
+              prevYearData.push({
+                x: Date.UTC(year, prevYearDate.getMonth(), 1),
+                y: prevYearItem.y
+              });
+            }
+          });
+        });
+
+
+        // Calculate revenue for the selected month and year
+        const selectedMonthStart = new Date(selectedYear, selectedMonth - 1, 1).getTime();
+        const selectedMonthEnd = new Date(selectedYear, selectedMonth, 0).getTime();
+        const selectedMonthData = data.filter(([timestamp]) => timestamp >= selectedMonthStart && timestamp <= selectedMonthEnd);
+        const totalRevenue = selectedMonthData.reduce((acc, [, costToClient]) => acc + costToClient, 0);
+        setRevenue(totalRevenue.toFixed(3));
+
+        const customerResponse = await axios.get("http://localhost:5000/customer");
+        const uniqueCustomers = new Set(customerResponse.data.map(item => item.CustomerId)).size;
+        setCustomerCount(uniqueCustomers);
+        // Calculate month-on-month growth
+        const prevMonthStart = new Date(selectedYear, selectedMonth - 2, 1).getTime();
+        const prevMonthEnd = new Date(selectedYear, selectedMonth - 1, 0).getTime();
+        const prevMonthData = data.filter(([timestamp]) => timestamp >= prevMonthStart && timestamp <= prevMonthEnd);
+        const currentMonthStart = new Date(selectedYear, selectedMonth - 1, 1).getTime();
+        const currentMonthEnd = new Date(selectedYear, selectedMonth, 0).getTime();
+        const currentMonthData = data.filter(([timestamp]) => timestamp >= currentMonthStart && timestamp <= currentMonthEnd);
+        const currentMonthRevenue = currentMonthData.reduce((acc, [, costToClient]) => acc + costToClient, 0);
+
+        const prevMonthRevenue = prevMonthData.reduce((acc, [, costToClient]) => acc + costToClient, 0);
+
+        const monthOnMonthGrowth = prevMonthRevenue > 0 ? ((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 : 0;
+        setMonthOnMonthGrowth(monthOnMonthGrowth.toFixed(2));
 
         Highcharts.stockChart('container', {
           accessibility: {
@@ -73,17 +141,49 @@ const Dashboard = () => {
           xAxis: {
             overscroll: 2678400000 // 1 month
           },
+
           rangeSelector: {
-            selected: 2,
+            buttonTheme: { // styles for the buttons
+              fill: 'none',
+              stroke: 'none',
+              'stroke-width': 0,
+              r: 5,
+              fill: '#D7C72C',
+              style: {
+                color: 'black',
+                fontWeight: 'bold'
+              },
+              states: {
+                hover: {
+                  fill: '#12BBB4',
+                  style: {
+                    color: 'white'
+                  }
+                },
+                select: {
+                  fill: '#12BBB4',
+                  style: {
+                    color: 'white'
+                  }
+                }
+              }
+            },
+            inputBoxBorderColor: '#12BBB4',
+            inputBoxWidth: 90,
+            inputBoxHeight: 20,
+            inputStyle: {
+              color: '#000',
+              fontWeight: 'bold'
+            },
+            labelStyle: {
+              color: '#000',
+              fontWeight: 'bold'
+            },
+            selected: 0,
             buttons: [{
               type: 'month',
-              count: 3,
-              text: '3m',
-              title: 'View 3 months'
-            }, {
-              type: 'month',
               count: 6,
-              text: '6m',
+              text: '6M',
               title: 'View 6 months'
             }, {
               type: 'ytd',
@@ -92,7 +192,7 @@ const Dashboard = () => {
             }, {
               type: 'year',
               count: 1,
-              text: '1y',
+              text: '1Y',
               title: 'View 1 year'
             }, {
               type: 'all',
@@ -100,42 +200,30 @@ const Dashboard = () => {
               title: 'View all'
             }]
           },
-          series: [{
-            name: 'Revenue per day',
-            color: '#D7C72C',
-            data: data,
-            id: 'dataseries',
-            tooltip: {
-              valueDecimals: 2,
-              valuePrefix: '₹'
-            }
-          }]
+          series: [
+            {
+              name: 'Monthly Revenue',
+              color: '#D7C72C',
+              data: currentYearData,
+              id: 'dataseries',
+              tooltip: {
+                valueDecimals: 2,
+                valuePrefix: '₹'
+              },
+              showInNavigator: true
+            },
+            {
+              name: 'Previous Year Monthly Revenue',
+              color: '#12BBB4',
+              data: prevYearData,
+              id: 'prevyearseries',
+              tooltip: {
+                valueDecimals: 2,
+                valuePrefix: '₹'
+              },
+              showInNavigator: true
+            }]
         });
-
-        // Calculate revenue for the selected month and year
-        const selectedMonthStart = new Date(selectedYear, selectedMonth - 1, 1).getTime();
-        const selectedMonthEnd = new Date(selectedYear, selectedMonth, 0).getTime();
-        const selectedMonthData = data.filter(([timestamp]) => timestamp >= selectedMonthStart && timestamp <= selectedMonthEnd);
-        const totalRevenue = selectedMonthData.reduce((acc, [, costToClient]) => acc + costToClient, 0);
-        setRevenue(totalRevenue.toFixed(3));
-
-        const customerResponse = await axios.get("http://localhost:5000/customer");
-        const uniqueCustomers = new Set(customerResponse.data.map(item => item.CustomerId)).size;
-        setCustomerCount(uniqueCustomers);
-
-        // Calculate month-on-month growth
-        const prevMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1).getTime();
-        const prevMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getTime();
-        const prevMonthData = data.filter(([timestamp]) => timestamp >= prevMonthStart && timestamp <= prevMonthEnd);
-        const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getTime();
-        const currentMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getTime();
-        const currentMonthData = data.filter(([timestamp]) => timestamp >= currentMonthStart && timestamp <= currentMonthEnd);
-        const currentMonthRevenue = currentMonthData.reduce((acc, [, costToClient]) => acc + costToClient, 0);
-
-        const prevMonthRevenue = prevMonthData.reduce((acc, [, costToClient]) => acc + costToClient, 0);
-
-        const monthOnMonthGrowth = prevMonthRevenue > 0 ? ((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 : 0;
-        setMonthOnMonthGrowth(monthOnMonthGrowth.toFixed(2));
       } catch (error) {
         console.error('Error fetching or processing data:', error);
       }
@@ -144,17 +232,36 @@ const Dashboard = () => {
     fetchData();
   }, [selectedMonth, selectedYear]);
 
-  const getPreviousMonthName = () => {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const currentDate = new Date();
-    const prevMonthIndex = (currentDate.getMonth() === 0) ? 11 : currentDate.getMonth() - 1;
-    return months[prevMonthIndex];
+
+  const generateMonthOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    const months = [];
+
+    if (selectedYear === currentYear) {
+      // Generate options from one month previous to the current month
+      for (let i = 1; i <= currentMonth; i++) { // Start from 1 to skip the current month (July)
+        months.push({
+          value: i,
+          name: new Date(currentYear, i - 1).toLocaleString('en', { month: 'long' })
+        });
+      }
+    } else {
+      // Generate options for all months if the selected year is not the current year
+      for (let i = 0; i < 12; i++) {
+        months.push({
+          value: i,
+          name: new Date(selectedYear, i).toLocaleString('en', { month: 'long' })
+        });
+      }
+    }
+
+    return months;
   };
 
-  const getPreviousYear = () => {
-    const currentDate = new Date();
-    const prevYear = (currentDate.getMonth() === 0) ? currentDate.getFullYear() - 1 : currentDate.getFullYear();
-    return prevYear;
+  const generateYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 10 }, (_, i) => currentYear - i);
   };
 
   return (
@@ -181,40 +288,19 @@ const Dashboard = () => {
                 <div>
                   <div className="card-title">₹ {revenue}</div>
                   <div className="card-subtitle">Revenue for <select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))}>
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>{new Date(0, i).toLocaleString('en', { month: 'long' })}</option>
+                    {generateMonthOptions().map((month) => (
+                      <option key={month.value} value={month.value}>
+                        {month.name}
+                      </option>
                     ))}
                   </select>
                     <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
-                      {Array.from({ length: 10 }, (_, i) => (
-                        <option key={i} value={new Date().getFullYear() - i}>{new Date().getFullYear() - i}</option>
+                      {generateYearOptions().map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
                       ))}
                     </select></div>
-                </div>
-              </div>
-            </div>
-          </a>
-          <a className="card card-yellow col-span-12 sm:col-span-6 xl:col-span-4" href="#">
-            <div className="card-content">
-              <div className="card-header">
-                <svg className="card-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                  <g id="SVGRepo_iconCarrier">
-                    {" "}
-                    <circle cx="9" cy="9" r="2" stroke="#000" strokeWidth="1.5"></circle>{" "}
-                    <path d="M13 15C13 16.1046 13 17 9 17C5 17 5 16.1046 5 15C5 13.8954 6.79086 13 9 13C11.2091 13 13 13.8954 13 15Z" stroke="#000" strokeWidth="1.5"></path>{" "}
-                    <path d="M22 12C22 15.7712 22 17.6569 20.8284 18.8284C19.6569 20 17.7712 20 14 20H10C6.22876 20 4.34315 20 3.17157 18.8284C2 17.6569 2 15.7712 2 12C2 8.22876 2 6.34315 3.17157 5.17157C4.34315 4 6.22876 4 10 4H14C17.7712 4 19.6569 4 20.8284 5.17157C21.298 5.64118 21.5794 6.2255 21.748 7" stroke="#000" strokeWidth="1.5" strokeLinecap="round"></path>{" "}
-                    <path d="M19 12H15" stroke="#000" strokeWidth="1.5" strokeLinecap="round"></path>{" "}
-                    <path d="M19 9H14" stroke="#000" strokeWidth="1.5" strokeLinecap="round"></path>{" "}
-                    <path d="M19 15H16" stroke="#000" strokeWidth="1.5" strokeLinecap="round"></path>{" "}
-                  </g>
-                </svg>
-              </div>
-              <div className="card-body">
-                <div>
-                  <div className="card-title">{customerCount}</div>
-                  <div className="card-subtitle">Customers</div>
                 </div>
               </div>
             </div>
@@ -240,6 +326,31 @@ const Dashboard = () => {
               </div>
             </div>
           </a>
+          <a className="card card-yellow col-span-12 sm:col-span-6 xl:col-span-4" href="#customer-table">
+            <div className="card-content">
+              <div className="card-header">
+                <svg className="card-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                  <g id="SVGRepo_iconCarrier">
+                    {" "}
+                    <circle cx="9" cy="9" r="2" stroke="#000" strokeWidth="1.5"></circle>{" "}
+                    <path d="M13 15C13 16.1046 13 17 9 17C5 17 5 16.1046 5 15C5 13.8954 6.79086 13 9 13C11.2091 13 13 13.8954 13 15Z" stroke="#000" strokeWidth="1.5"></path>{" "}
+                    <path d="M22 12C22 15.7712 22 17.6569 20.8284 18.8284C19.6569 20 17.7712 20 14 20H10C6.22876 20 4.34315 20 3.17157 18.8284C2 17.6569 2 15.7712 2 12C2 8.22876 2 6.34315 3.17157 5.17157C4.34315 4 6.22876 4 10 4H14C17.7712 4 19.6569 4 20.8284 5.17157C21.298 5.64118 21.5794 6.2255 21.748 7" stroke="#000" strokeWidth="1.5" strokeLinecap="round"></path>{" "}
+                    <path d="M19 12H15" stroke="#000" strokeWidth="1.5" strokeLinecap="round"></path>{" "}
+                    <path d="M19 9H14" stroke="#000" strokeWidth="1.5" strokeLinecap="round"></path>{" "}
+                    <path d="M19 15H16" stroke="#000" strokeWidth="1.5" strokeLinecap="round"></path>{" "}
+                  </g>
+                </svg>
+              </div>
+              <div className="card-body">
+                <div>
+                  <div className="card-title">{customerCount}</div>
+                  <div className="card-subtitle">Customers</div>
+                </div>
+              </div>
+            </div>
+          </a>
         </div>
       </div>
 
@@ -247,8 +358,8 @@ const Dashboard = () => {
         <div className="intro-y block sm:flex items-center h-10">
           <h2 className="mr-5 text-lg font-medium truncate">Revenue Chart</h2>
         </div>
-        <div className="intro-y box p-5 mt-5">
-          <HighchartsReact highcharts={Highcharts}/>
+        <div className="intro-y box p-5 mt-5" >
+          <HighchartsReact highcharts={Highcharts} />
           <div id="container"></div>
         </div>
       </div>

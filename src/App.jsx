@@ -27,6 +27,7 @@ import PasswordChangeForm from "./Components/PasswordChangeForm";
 import ScrollToTop from "./Components/ScrollToTop";
 
 
+
 const isAuthenticated = () => {
   const token = localStorage.getItem("token");
   return !!token;
