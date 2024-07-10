@@ -111,7 +111,7 @@ const ExcelUploader = () => {
         console.log(socket.id)
         socket.on('uploadProgress', (percentCompleted) => {
           setUploadProgress(percentCompleted);
-        });
+        });  
     
         return () => socket.disconnect();
       }, []);
