@@ -70,6 +70,15 @@ const ExcelUploader = () => {
     document.body.removeChild(link);
   };
 
+    useEffect(() => {
+        const socket = io('http://localhost:5000');
+        console.log(socket.id)
+        socket.on('uploadProgress', (percentCompleted) => {
+          setUploadProgress(percentCompleted);
+        });  
+    
+        return () => socket.disconnect();
+      }, []);
 
 
   // const handleFileSubmit = async (data) => {

@@ -3,21 +3,19 @@ import axios from "axios";
 import MUIDataTable from "mui-datatables";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import "../css/customerform.css";
-import { Line, Pie } from 'react-chartjs-2';
+import { Line, Pie } from "react-chartjs-2";
 import "chart.js/auto";
 import Tooltip from "@mui/material/Tooltip";
 import Papa from "papaparse";
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import IconButton from "@mui/material/IconButton";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
-import * as htmlToImage from 'html-to-image';
-import html2canvas from 'html2canvas';
-import { useReactToPrint } from 'react-to-print';
-
+import * as htmlToImage from "html-to-image";
+import html2canvas from "html2canvas";
+import { useReactToPrint } from "react-to-print";
 
 function ReportGeneration() {
-
   const [customers, setCustomers] = useState([]);
   const [states, setStates] = useState([]);
   const [uniqueServices, setUniqueServices] = useState([]);
@@ -34,14 +32,16 @@ function ReportGeneration() {
   const [lineChartData, setLineChartData] = useState({});
   const [pieChartData, setPieChartData] = useState({});
 
-
   const fetchBanksForClient = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/bank_customerdetails', {
-        params: {
-          customerId, // Pass the selected customer ID to filter banks
-        },
-      });
+      const response = await axios.get(
+        "http://localhost:5000/bank_customerdetails",
+        {
+          params: {
+            customerId, // Pass the selected customer ID to filter banks
+          },
+        }
+      );
 
       // Check if the response contains data
       if (response.data && response.data.data) {
@@ -54,10 +54,10 @@ function ReportGeneration() {
         }, []);
         setBanks(uniqueBanks);
       } else {
-        console.error('No data found for the provided customer ID');
+        console.error("No data found for the provided customer ID");
       }
     } catch (error) {
-      console.error('Error fetching banks for client:', error);
+      console.error("Error fetching banks for client:", error);
     }
   };
 
@@ -105,14 +105,20 @@ function ReportGeneration() {
       const employees = employeeResponse.data;
 
       // Create maps for easy lookup
-      const customersMap = new Map(customers.map(customer => [customer.CustomerId, customer]));
-      const banksMap = new Map(banks.map(bank => [bank.BankId, bank]));
-      const atmsMap = new Map(atms.map(atm => [atm.AtmId, atm]));
-      const atmregionsMap = new Map(atmregions.map(atmregion => [atmregion.AtmId, atmregion]));
-      const employeesMap = new Map(employees.map(employee => [employee.EmployeeId, employee]));
+      const customersMap = new Map(
+        customers.map((customer) => [customer.CustomerId, customer])
+      );
+      const banksMap = new Map(banks.map((bank) => [bank.BankId, bank]));
+      const atmsMap = new Map(atms.map((atm) => [atm.AtmId, atm]));
+      const atmregionsMap = new Map(
+        atmregions.map((atmregion) => [atmregion.AtmId, atmregion])
+      );
+      const employeesMap = new Map(
+        employees.map((employee) => [employee.EmployeeId, employee])
+      );
 
       // Create a row for each service
-      const mergedDataCsv = services.map(service => {
+      const mergedDataCsv = services.map((service) => {
         const atm = atmsMap.get(service.AtmId) || {};
         const bank = banksMap.get(atm.BankId) || {};
         const customer = customersMap.get(atm.CustomerId) || {};
@@ -126,7 +132,7 @@ function ReportGeneration() {
           BankId: bank.BankId || "",
           BankName: bank.BankName || "",
           AtmId: atm.AtmId || "",
-          AtmCount: 1,  // Each row represents one service
+          AtmCount: 1, // Each row represents one service
           Address: atm.Address || "",
           Country: atm.Country || "",
           State: atm.State || "",
@@ -201,19 +207,27 @@ function ReportGeneration() {
   }, []);
 
   useEffect(() => {
-    if (customerId || bankId || stateName || selectedService || TakeoverDate || HandoverDate) {
+    if (
+      customerId ||
+      bankId ||
+      stateName ||
+      selectedService ||
+      TakeoverDate ||
+      HandoverDate
+    ) {
       fetchData();
     }
-  }, [customerId, bankId, stateName, selectedService, TakeoverDate, HandoverDate]);
+  }, [
+    customerId,
+    bankId,
+    stateName,
+    selectedService,
+    TakeoverDate,
+    HandoverDate,
+  ]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    // Check if TakeoverDate is provided
-    if (!TakeoverDate) {
-      alert("Takeover Date is required.");
-      return;
-    }
 
     // Function to validate and preprocess date strings in YYYY-MM-DD format
     const validateDateFormat = (dateString) => {
@@ -221,16 +235,27 @@ function ReportGeneration() {
       if (isoFormat.test(dateString)) {
         return dateString;
       } else {
-        return null;
+        return null;  
       }
     };
 
     // Validate input dates
-    const formattedTakeoverDate = validateDateFormat(TakeoverDate);
-    const formattedHandoverDate = HandoverDate ? validateDateFormat(HandoverDate) : null;
+    const formattedFromDate = validateDateFormat(TakeoverDate);
 
-    if (!formattedTakeoverDate) {
-      alert("Invalid Takeover Date format.");
+    // Calculate the last day of the previous month if HandoverDate is not provided
+    let formattedToDate = validateDateFormat(HandoverDate);
+    if (!formattedToDate) {
+      const now = new Date();
+      const lastDayOfPreviousMonth = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        0
+      );
+      formattedToDate = lastDayOfPreviousMonth.toISOString().split("T")[0];
+    }
+
+    if (!formattedFromDate) {
+      alert("Invalid date format.");
       return;
     }
 
@@ -240,8 +265,8 @@ function ReportGeneration() {
       BankId: bankId,
       State: stateName,
       ServiceId: selectedService,
-      TakeoverDate: formattedTakeoverDate,
-      HandoverDate: formattedHandoverDate,
+      TakeoverDate: formattedFromDate,
+      HandoverDate: formattedToDate,
     };
     const appliedFilters = Object.fromEntries(
       Object.entries(filters).filter(([_, value]) => value)
@@ -253,41 +278,51 @@ function ReportGeneration() {
         filteredData = data.filter((item) => {
           return Object.entries(appliedFilters).every(([key, value]) => {
             if (key === "TakeoverDate") {
-              const itemDate = new Date(item[key]);
-              const filterDate = new Date(value);
-              const endDate = HandoverDate ? new Date(formattedHandoverDate) : new Date();
+              const itemTakeoverDate = new Date(item.TakeoverDate);
+              const filterFromDate = new Date(value);
+              const filterToDate = new Date(formattedToDate);
+              const itemHandoverDate = item.HandoverDate
+                ? new Date(item.HandoverDate)
+                : new Date();
 
-              if (isNaN(itemDate.getTime())) {
-                return false;
-              }
-              return itemDate >= filterDate && itemDate <= endDate;
-            } else if (key === "HandoverDate" && TakeoverDate) {
-              // This condition is handled in the 'TakeoverDate' filter
-              return true;
+              return (
+                itemTakeoverDate <= filterToDate &&
+                (!itemHandoverDate || itemHandoverDate >= filterFromDate)
+              );
+            } else if (key === "HandoverDate") {
+              return true; // Skip check, already covered by TakeoverDate
             } else {
               return item[key] === value;
             }
           });
         });
       }
+
       const cumulativeData = [];
 
-      filteredData.forEach(item => {
+      filteredData.forEach((item) => {
         const startDate = new Date(item.TakeoverDate);
-        const endDate = item.HandoverDate ? new Date(item.HandoverDate) : new Date(); // Use HandoverDate if available, otherwise today's date
+        const endDate = item.HandoverDate
+          ? new Date(item.HandoverDate)
+          : new Date(); // Use HandoverDate if available, otherwise today's date
 
-        let currentDate = new Date(startDate); // Start from TakeoverDate
+        let currentDate = new Date(formattedFromDate); // Start from the FromDate provided by the user
 
-        while (currentDate <= endDate && currentDate <= new Date()) {
+        while (
+          currentDate <= endDate &&
+          currentDate <= new Date(formattedToDate)
+        ) {
           const monthString = currentDate.toISOString().slice(0, 7); // Extract the YYYY-MM part
 
-          const existingEntry = cumulativeData.find(entry => entry.Month === monthString && entry.ServiceId === item.ServiceId);
+          const existingEntry = cumulativeData.find(
+            (entry) =>
+              entry.Month === monthString && entry.ServiceId === item.ServiceId
+          );
 
           const costToClient = parseFloat(item.CostToClient);
           const payouts = parseFloat(item.PayOut) || 0; // Default to 0 if payouts are not defined
 
           const netRevenue = costToClient - payouts;
-          console.log(netRevenue);
 
           if (existingEntry) {
             existingEntry.NetRevenue += netRevenue;
@@ -308,15 +343,19 @@ function ReportGeneration() {
       cumulativeData.sort((a, b) => new Date(a.Month) - new Date(b.Month));
 
       // Extract labels (unique months)
-      const labels = [...new Set(cumulativeData.map(entry => entry.Month))];
+      const labels = [...new Set(cumulativeData.map((entry) => entry.Month))];
 
       // Extract unique service types
-      const serviceTypes = [...new Set(cumulativeData.map(entry => entry.ServiceType))];
+      const serviceTypes = [
+        ...new Set(cumulativeData.map((entry) => entry.ServiceType)),
+      ];
 
       // Prepare datasets for line chart
-      const datasets = serviceTypes.map(serviceType => {
-        const data = labels.map(month => {
-          const entry = cumulativeData.find(item => item.Month === month && item.ServiceType === serviceType);
+      const datasets = serviceTypes.map((serviceType) => {
+        const data = labels.map((month) => {
+          const entry = cumulativeData.find(
+            (item) => item.Month === month && item.ServiceType === serviceType
+          );
           return entry ? entry.NetRevenue : 0; // Use 0 if no entry found for the month
         });
 
@@ -330,23 +369,37 @@ function ReportGeneration() {
       const lineChartData = {
         labels,
         datasets,
+        backgroundColor: [
+          "#FF6384",
+          "#36A2EB",
+          "#FFCE56",
+          "#4BC0C0",
+          "#9966FF",
+          "#FF9F40",
+        ],
       };
 
       // Prepare pie chart data
       const pieChartData = {
         labels: serviceTypes,
-        datasets: [{
-          data: serviceTypes.map(serviceType =>
-            cumulativeData
-              .filter(entry => entry.ServiceType === serviceType)
-              .reduce((sum, entry) => sum + entry.NetRevenue, 0)
-          ),
-          backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'],
-        }],
+        datasets: [
+          {
+            data: serviceTypes.map((serviceType) =>
+              cumulativeData
+                .filter((entry) => entry.ServiceType === serviceType)
+                .reduce((sum, entry) => sum + entry.NetRevenue, 0)
+            ),
+            backgroundColor: [
+              "#FF6384",
+              "#36A2EB",
+              "#FFCE56",
+              "#4BC0C0",
+              "#9966FF",
+              "#FF9F40",
+            ],
+          },
+        ],
       };
-
-
-
 
       setLineChartData(lineChartData);
       setPieChartData(pieChartData);
@@ -357,35 +410,65 @@ function ReportGeneration() {
       console.error("Error filtering data:", error);
     }
   };
+
   const exportToExcel = async () => {
-    const filteredData = dataSubmit.map(({ CustomerId, CustomerName, CustomerSiteStatus, BankId, BankName, AtmId, Address, Country, State, City, BranchCode, SiteId, Lho, SiteStatus, SiteType, EmployeeId, EmployeeName, EmployeeRole, EmployeeContactNumber, TypeOfWork, ServiceId, ServiceType, TakeoverDate, HandoverDate, PayOut, CostToClient }) => ({
-      'Customer ID': CustomerId,
-      'Customer Name': CustomerName,
-      'Customer Site Status': CustomerSiteStatus,
-      'Bank ID': BankId,
-      'Bank Name': BankName,
-      'ATM ID': AtmId,
-      'Address': Address,
-      'Country': Country,
-      'State': State,
-      'City': City,
-      'Branch Code': BranchCode,
-      'Site ID': SiteId,
-      'LHO': Lho,
-      'Site Status': SiteStatus,
-      'Site Type': SiteType,
-      'Employee ID': EmployeeId,
-      'Employee Name': EmployeeName,
-      'Employee Role': EmployeeRole,
-      'Employee Contact Number': EmployeeContactNumber,
-      'Type of Work': TypeOfWork,
-      'Service ID': ServiceId,
-      'Service Type': ServiceType,
-      'Takeover Date': TakeoverDate,
-      'Handover Date': HandoverDate,
-      'Pay Out': PayOut,
-      'Cost to Client': CostToClient,
-    }));
+    const filteredData = dataSubmit.map(
+      ({
+        CustomerId,
+        CustomerName,
+        CustomerSiteStatus,
+        BankId,
+        BankName,
+        AtmId,
+        Address,
+        Country,
+        State,
+        City,
+        BranchCode,
+        SiteId,
+        Lho,
+        SiteStatus,
+        SiteType,
+        EmployeeId,
+        EmployeeName,
+        EmployeeRole,
+        EmployeeContactNumber,
+        TypeOfWork,
+        ServiceId,
+        ServiceType,
+        TakeoverDate,
+        HandoverDate,
+        PayOut,
+        CostToClient,
+      }) => ({
+        "Customer ID": CustomerId,
+        "Customer Name": CustomerName,
+        "Customer Site Status": CustomerSiteStatus,
+        "Bank ID": BankId,
+        "Bank Name": BankName,
+        "ATM ID": AtmId,
+        Address: Address,
+        Country: Country,
+        State: State,
+        City: City,
+        "Branch Code": BranchCode,
+        "Site ID": SiteId,
+        LHO: Lho,
+        "Site Status": SiteStatus,
+        "Site Type": SiteType,
+        "Employee ID": EmployeeId,
+        "Employee Name": EmployeeName,
+        "Employee Role": EmployeeRole,
+        "Employee Contact Number": EmployeeContactNumber,
+        "Type of Work": TypeOfWork,
+        "Service ID": ServiceId,
+        "Service Type": ServiceType,
+        "Takeover Date": TakeoverDate,
+        "Handover Date": HandoverDate,
+        "Pay Out": PayOut,
+        "Cost to Client": CostToClient,
+      })
+    );
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(filteredData);
@@ -397,45 +480,47 @@ function ReportGeneration() {
         const canvas = await html2canvas(document.getElementById(elementId));
 
         // Optimize canvas context for frequent read operations
-        canvas.getContext('2d').willReadFrequently = true;
+        canvas.getContext("2d").willReadFrequently = true;
 
-        const dataUrl = canvas.toDataURL('image/png');
+        const dataUrl = canvas.toDataURL("image/png");
 
         const imgCell = XLSX.utils.encode_cell({ r: cell.r, c: cell.c });
-        sheet[imgCell] = { t: 's', v: '' };
+        sheet[imgCell] = { t: "s", v: "" };
 
         const drawing = {
           "!margins": { left: 0.25, right: 0.25, top: 0.75, bottom: 0.75 },
-          "image": {
-            extension: 'png',
-            data: dataUrl.split('base64,')[1],
+          image: {
+            extension: "png",
+            data: dataUrl.split("base64,")[1],
           },
-          "type": "image",
-          "positioning": "absolute",
-          "position": {
-            "x": 0,
-            "y": 0,
-            "width": canvas.width,
-            "height": canvas.height,
+          type: "image",
+          positioning: "absolute",
+          position: {
+            x: 0,
+            y: 0,
+            width: canvas.width,
+            height: canvas.height,
           },
         };
 
-        sheet['!images'] = sheet['!images'] || [];
-        sheet['!images'].push(drawing);
+        sheet["!images"] = sheet["!images"] || [];
+        sheet["!images"].push(drawing);
       } catch (error) {
         console.error(`Failed to add image from ${elementId}:`, error);
       }
     };
 
-
-
     // Create a new sheet for charts
-    const wsCharts = XLSX.utils.aoa_to_sheet([['Line Chart'], [], ['Pie Chart']]);
+    const wsCharts = XLSX.utils.aoa_to_sheet([
+      ["Line Chart"],
+      [],
+      ["Pie Chart"],
+    ]);
     XLSX.utils.book_append_sheet(wb, wsCharts, "Charts");
 
     // Add images to the charts sheet
-    await addImageToSheet('lineChart', wsCharts, { r: 1, c: 0 });
-    await addImageToSheet('pieChart', wsCharts, { r: 3, c: 0 });
+    await addImageToSheet("lineChart", wsCharts, { r: 1, c: 0 });
+    await addImageToSheet("pieChart", wsCharts, { r: 3, c: 0 });
 
     XLSX.writeFile(wb, "Filtered_Data_with_Charts.xlsx");
   };
@@ -452,16 +537,22 @@ function ReportGeneration() {
       options: {
         customBodyRender: (value, tableMeta, updateValue) => {
           return (
-            <div style={{ whiteSpace: 'normal', wordWrap: 'break-word', width: '300px' }}>
+            <div
+              style={{
+                whiteSpace: "normal",
+                wordWrap: "break-word",
+                width: "300px",
+              }}
+            >
               {value}
             </div>
           );
         },
         setCellProps: () => ({
           style: {
-            maxWidth: '300px'
-          }
-        })
+            maxWidth: "300px",
+          },
+        }),
       },
     },
     { name: "Country", label: "Country" },
@@ -494,7 +585,7 @@ function ReportGeneration() {
     responsive: "standard",
     scrollX: true,
     selectableRows: "none",
-    customToolbarSelect: () => { },
+    customToolbarSelect: () => {},
     // customToolbar: () => (
     //   <div onClick={exportToExcel} style={{ cursor: 'pointer' }}>
     //     <Tooltip title="Export To Excel">
@@ -562,7 +653,6 @@ function ReportGeneration() {
       },
     },
   };
-
 
   const getMuiTheme = () =>
     createTheme({
@@ -689,7 +779,7 @@ function ReportGeneration() {
               </div>
               <div className="relative">
                 <label htmlFor="floating_outlined" className="label_form">
-                  Takeover Date
+                  From Date
                 </label>
                 <input
                   id="TakeoverDate"
@@ -702,7 +792,7 @@ function ReportGeneration() {
               </div>
               <div className="relative">
                 <label htmlFor="floating_outlined" className="label_form">
-                  Handover Date
+                  To Date
                 </label>
                 <input
                   id="HandoverDate"
@@ -719,12 +809,11 @@ function ReportGeneration() {
             </button>
           </form>
 
-
           {showTable && (
             <>
               <div className="chartContainer">
                 <div id="lineChart" className="lineChart">
-                  <Line data={lineChartData} options={lineChartOptions}/>
+                  <Line data={lineChartData} options={lineChartOptions} />
                 </div>
                 <div id="pieChart" className="pieChart">
                   <Pie data={pieChartData} options={pieChartOptions} />
