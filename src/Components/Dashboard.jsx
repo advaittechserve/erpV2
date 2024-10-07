@@ -26,27 +26,29 @@ const Dashboard = () => {
         const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth();
         const previousYear = currentYear - 1;
-        const sortedData = response.data
-          .map(item => {
-            const startDate = new Date(item.TakeoverDate).getTime();
-            const endDate = item.HandoverDate ? new Date(item.HandoverDate).getTime() : currentDate.getTime();
-            let timestamps = [];
-            let tempDate = new Date(startDate);
+   const sortedData = response.data
+  .map(item => {
+    const startDate = new Date(item.TakeoverDate).getTime();
+    const endDate = item.HandoverDate ? new Date(item.HandoverDate).getTime() : currentDate.getTime();
+    let timestamps = [];
 
-            while (tempDate <= endDate) {
-              timestamps.push({
-                timestamp: new Date(tempDate).getTime(),
-                costToClient: item.CostToClient,
-                PayOut: item.PayOut
-              });
-              tempDate.setMonth(tempDate.getMonth() + 1); 
-            }
+    // Generate timestamps from startDate to endDate
+    let tempDate = new Date(startDate);
 
-            return timestamps;
-          })
-          .flat()
-          .sort((a, b) => a.timestamp - b.timestamp);
-        // Sort by timestamp
+    while (tempDate <= endDate) {
+      timestamps.push({
+        timestamp: new Date(tempDate).getTime(),
+        costToClient: item.CostToClient,
+        PayOut: item.PayOut
+      });
+      tempDate.setMonth(tempDate.getMonth() + 1); // Move to the next month
+    }
+
+    return timestamps;
+  })
+  .flat()
+  .sort((a, b) => a.timestamp - b.timestamp);
+// Sort by timestamp
 
         const data = sortedData.map(item => [item.timestamp, item.costToClient - item.PayOut]);
 
@@ -149,10 +151,10 @@ const Dashboard = () => {
               'stroke-width': 0,
               r: 5,
               fill: '#D7C72C',
-              style: {
-                color: 'black',
-                fontWeight: 'bold'
-              },
+                  style: {
+                    color: 'black',
+                    fontWeight: 'bold'
+                  },
               states: {
                 hover: {
                   fill: '#12BBB4',
