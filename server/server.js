@@ -1,23 +1,38 @@
 const { uploadCustomerData } = require('./backendfunctions/customerDataHandler.js');
-const {uploadBankData} = require('./backendfunctions/bankDataHandler.js');
-const {uploadAtmData} = require('./backendfunctions/atmDataHandler.js');
-const {uploadEmployeeData} = require('./backendfunctions/employeeDataHandler.js');
-const {uploadServiceData} = require('./backendfunctions/serviceDataHandler.js');
+const { uploadBankData } = require('./backendfunctions/bankDataHandler.js');
+const { uploadAtmData } = require('./backendfunctions/atmDataHandler.js');
+const { uploadEmployeeData } = require('./backendfunctions/employeeDataHandler.js');
+const { uploadServiceData } = require('./backendfunctions/serviceDataHandler.js');
 
 require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql');
 const cors = require('cors');
+const http = require('http');
 const bcrypt = require('bcryptjs');
+const socketIo = require('socket.io');
+const { promisify } = require('util');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
 const Papa = require('papaparse');
 const XLSX = require('xlsx');
 const app = express();
+const unlinkAsync = promisify(fs.unlink);
 const port = 5000;
 process.env.TZ = 'Asia/Kolkata'; // Set the server timezone to IST
 const countryStateCity = require("country-state-city");
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: 'http://localhost:5173', // Replace with your client URL
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type'],
+    credentials: true
+  }
+});
+let socketId = '';
+
 
 const currentDate = new Date();
 currentDate.toLocaleString('en-IN', {
@@ -56,12 +71,18 @@ const upload = multer({ storage: storage });
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
+io.on('connection', (socket) => {
+  socketId = socket.id;
+  socket.on('disconnect', () => {
+  });
+  // Handle events or store `socket.id` for future use
+});
 //log upload
 app.post('/api/newUploadLog', (req, res) => {
   const timestamp = new Date().toISOString().replace(/:/g, '-');
   const logFileName = `upload-${timestamp}.txt`;
   currentLogFile = path.join(__dirname, 'loguploads', logFileName);
-  
+
   fs.writeFile(currentLogFile, '', (err) => {
     if (err) {
       console.error('Error creating log file:', err);
@@ -83,28 +104,130 @@ app.post('/api/log', (req, res) => {
     res.sendStatus(200);
   });
 });
+
+// app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
+//   try {
+//     const file = req.file;
+//     if (!file) {
+//       return res.status(400).json({ message: 'No file uploaded' });
+//     }
+
+//     const workbook = XLSX.readFile(file.path); // Read Excel file
+//     const sheetName = workbook.SheetNames[0]; // Get the first sheet name
+//     const worksheet = workbook.Sheets[sheetName]; // Get the worksheet
+//     const jsonData = XLSX.utils.sheet_to_json(worksheet); // Convert sheet to JSON
+
+//     const sequentialFunctions = [
+//       uploadCustomerData,
+//       uploadBankData,
+//       uploadAtmData
+//     ];
+
+//     const concurrentFunctions = [
+//       uploadEmployeeData,
+//       uploadServiceData
+//     ];
+
+//     let progress = 0;
+//     const totalFunctions = sequentialFunctions.length + concurrentFunctions.length;
+
+//     // Process sequential functions using asyncForEach
+//     await asyncForEach(sequentialFunctions, async (uploadFunction) => {
+//       await uploadFunction(jsonData);
+//       progress++;
+//       const percentCompleted = Math.round((progress * 100) / totalFunctions);
+//       // Emit progress to client
+//       req.app.io.emit('uploadProgress', percentCompleted);
+//     });
+
+//     // Process concurrent functions using Promise.all
+//     await Promise.all(concurrentFunctions.map(async (uploadFunction) => {
+//       await uploadFunction(jsonData);
+//       progress++;
+//       const percentCompleted = Math.round((progress * 100) / totalFunctions);
+//       // Emit progress to client
+//       req.app.io.emit('uploadProgress', percentCompleted);
+//     }));
+
+//     // Cleanup: Delete the file after processing
+//     await unlinkAsync(file.path);
+
+//     return res.json({ message: 'File uploaded successfully' });
+//   } catch (error) {
+//     console.error('Error uploading file:', error);
+//     return res.status(500).json({ message: 'Error uploading file' });
+//   }
+// });
+
+// app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
+//   try {
+//     const file = req.file;
+//     if (!file) {
+//       return res.status(400).json({ message: 'No file uploaded' });
+//     }
+//     const workbook = XLSX.readFile(file.path); // Read Excel file
+//     const sheetName = workbook.SheetNames[0]; // Get the first sheet name
+//     const worksheet = workbook.Sheets[sheetName]; // Get the worksheet
+//     const jsonData = XLSX.utils.sheet_to_json(worksheet); // Convert sheet to JSON
+//     // Process jsonData (assuming you have an uploadCustomerData function)
+//     await uploadCustomerData(jsonData);
+//     await uploadBankData(jsonData);
+//     await uploadAtmData(jsonData);
+//     await uploadEmployeeData(jsonData);
+//     await uploadServiceData(jsonData);
+//     return res.json({ message: 'File uploaded successfully' });
+//   } catch (error) {
+//     console.error('Error uploading file:', error);
+//     return res.status(500).json({ message: 'Error uploading file' });
+//   }
+// });
+
 app.post('/api/uploadbulk', upload.single('file'), async (req, res) => {
+
   try {
     const file = req.file;
     if (!file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
-    const workbook = XLSX.readFile(file.path); // Read Excel file
-    const sheetName = workbook.SheetNames[0]; // Get the first sheet name
-    const worksheet = workbook.Sheets[sheetName]; // Get the worksheet
-    const jsonData = XLSX.utils.sheet_to_json(worksheet); // Convert sheet to JSON
-    // Process jsonData (assuming you have an uploadCustomerData function)
+    const workbook = XLSX.readFile(file.path);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+    const totalSteps = 5;
+    let completedSteps = 0;
+    const emitProgress = () => {
+      const percentCompleted = Math.round((completedSteps / totalSteps) * 100);
+      io.to(socketId).emit('uploadProgress', percentCompleted);
+    };
+
     await uploadCustomerData(jsonData);
+    completedSteps++;
+    emitProgress();
+
     await uploadBankData(jsonData);
+    completedSteps++;
+    emitProgress();
+
     await uploadAtmData(jsonData);
+    completedSteps++;
+    emitProgress();
+
     await uploadEmployeeData(jsonData);
+    completedSteps++;
+    emitProgress();
+
     await uploadServiceData(jsonData);
+    completedSteps++;
+    emitProgress();
+
     return res.json({ message: 'File uploaded successfully' });
   } catch (error) {
     console.error('Error uploading file:', error);
     return res.status(500).json({ message: 'Error uploading file' });
   }
 });
+
 // File upload route
 app.post('/api/uploadFile', upload.single('file'), (req, res) => {
   try {
@@ -136,7 +259,7 @@ app.post('/api/uploadfiledata', (req, res) => {
       console.error('Error inserting upload file data:', err);
       res.status(500).json({ error: 'Error inserting upload file data' });
     } else {
-  
+
       res.status(201).json({ message: 'Uploaded file data inserted successfully' });
     }
   });
@@ -152,8 +275,6 @@ app.post('/api/insertCustomerData', async (req, res) => {
         row.CustomerId,
         row.CustomerName,
         row.CustomerSiteStatus, // Use CustomerStatus instead of CustomerSiteStatus to match the frontend
-        row.StartDate,
-        row.EndDate
       ]);
     } else if (Array.isArray(req.body)) {
       // If the request body is already an array, use it as is
@@ -161,8 +282,6 @@ app.post('/api/insertCustomerData', async (req, res) => {
         row.CustomerId,
         row.CustomerName,
         row.CustomerSiteStatus,
-        row.StartDate,
-        row.EndDate
       ]);
     } else {
       // Otherwise, map the request body to the desired format
@@ -171,13 +290,11 @@ app.post('/api/insertCustomerData', async (req, res) => {
           req.body.CustomerId,
           req.body.CustomerName,
           req.body.CustomerSiteStatus,
-          req.body.StartDate,
-          req.body.EndDate
         ]
       ];
     }
 
-    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus, StartDate, EndDate) VALUES ?';
+    const customerQuery = 'INSERT INTO customer (CustomerId, CustomerName, CustomerSiteStatus) VALUES ?';
     await connection.query(customerQuery, [customerData]); // Note the double array wrapping
 
     res.status(200).send('Customer data inserted successfully');
@@ -195,8 +312,6 @@ app.post('/api/updateCustomerData', async (req, res) => {
       customerData = req.body.data.map((row) => [
         row.CustomerName,
         row.CustomerSiteStatus,
-        row.StartDate,
-        row.EndDate,
         row.CustomerId // Add CustomerId to the end of the array
       ]);
     } else if (Array.isArray(req.body)) {
@@ -204,8 +319,6 @@ app.post('/api/updateCustomerData', async (req, res) => {
       customerData = req.body.map((row) => [
         row.CustomerName,
         row.CustomerSiteStatus,
-        row.StartDate,
-        row.EndDate,
         row.CustomerId // Add CustomerId to the end of the array
       ]);
     } else {
@@ -214,14 +327,12 @@ app.post('/api/updateCustomerData', async (req, res) => {
         [
           req.body.CustomerName,
           req.body.CustomerSiteStatus,
-          req.body.StartDate,
-          req.body.EndDate,
           req.body.CustomerId // Add CustomerId to the end of the array
         ]
       ];
     }
 
-    const customerQuery = 'UPDATE customer SET CustomerName = ?, CustomerSiteStatus = ?, StartDate = ?, EndDate = ? WHERE CustomerId = ?';
+    const customerQuery = 'UPDATE customer SET CustomerName = ?, CustomerSiteStatus = ? WHERE CustomerId = ?';
     for (const data of customerData) {
       await connection.query(customerQuery, data);
     }
@@ -278,7 +389,7 @@ app.post('/api/insertBankData', async (req, res) => {
               return res.status(500).send('Error committing transaction');
             });
           } else {
-           
+
             res.status(200).send('Bank data inserted successfully');
           }
         });
@@ -341,7 +452,7 @@ app.post('/api/insertBankIdCustomerIdData', async (req, res) => {
               return res.status(500).send('Error committing transaction');
             });
           } else {
-    
+
             res.status(200).send('Bank-customer data inserted successfully');
           }
         });
@@ -379,7 +490,7 @@ app.post('/api/updateBankData', async (req, res) => {
       }
     }
 
-    const bankQuery = 'UPDATE bank SET BankName = ? WHERE BankId = ?';  
+    const bankQuery = 'UPDATE bank SET BankName = ? WHERE BankId = ?';
 
     connection.beginTransaction(async (err) => {
       if (err) {
@@ -404,7 +515,7 @@ app.post('/api/updateBankData', async (req, res) => {
               return res.status(500).send('Error updating bank data');
             });
           } else {
-        
+
             res.status(200).send('Bank data updated successfully');
           }
         });
@@ -535,7 +646,7 @@ app.post('/api/insertEmployeeData', async (req, res) => {
               return res.status(500).send('Error committing transaction');
             });
           } else {
-       
+
             res.status(200).send('Employee data inserted successfully');
           }
         });
@@ -572,7 +683,6 @@ app.post('/api/insertEmployeeIdAtmIdData', async (req, res) => {
         employeeAtmData.push([req.body.AtmId, req.body.EmployeeId]);
       }
     }
-    console.log(employeeAtmData);
 
     const employeeAtmQuery = 'INSERT INTO atm_employee (AtmId, EmployeeId) VALUES ?';
 
@@ -599,7 +709,7 @@ app.post('/api/insertEmployeeIdAtmIdData', async (req, res) => {
               return res.status(500).send('Error committing transaction');
             });
           } else {
-           
+
             res.status(200).send('Employee-ATM data inserted successfully');
           }
         });
@@ -674,7 +784,7 @@ app.post('/api/updateEmployeeData', async (req, res) => {
               return res.status(500).send('Error updating employee data');
             });
           } else {
-  
+
             res.status(200).send('Employee data updated successfully');
           }
         });
@@ -732,11 +842,11 @@ app.post('/api/updateServicesData', (req, res) => {
 
   const updateQuery = `
     UPDATE services SET 
-      ServiceType = ?, TakeoverDate = ?, HandoverDate = ?, PayOut=?, CostToClient = ?, AtmId = ? 
-    WHERE ServiceId = ?
+       TakeoverDate = ?, HandoverDate = ?, PayOut=?, CostToClient = ?
+    WHERE ServiceId = ? AND AtmId = ?
   `;
 
-  const values = [ServiceType, TakeoverDate, HandoverDate, PayOut, CostToClient, AtmId, ServiceId];
+  const values = [TakeoverDate, HandoverDate, PayOut, CostToClient, ServiceId, AtmId];
 
   connection.query(updateQuery, values, (error, results) => {
     if (error) {
@@ -757,6 +867,8 @@ app.post('/api/register', async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    const access = 'employee';
+
     const query = 'INSERT INTO admin (name, username, password, phonenumber, access, session_intime, session_outtime) VALUES (?,?,?,?,?,?,?)';
     connection.query(query, [name, username, hashedPassword, phonenumber, access, session_intime, session_outtime], (error, results) => {
       if (error) {
@@ -771,15 +883,40 @@ app.post('/api/register', async (req, res) => {
     res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
   }
 });
+
+// app.post('/api/registeruser/:userId', async (req, res) => {
+//   const userId = req.params.userId;
+//   const { name, username, password, phonenumber, access } = req.body;
+
+//   try {
+//     const hashedPassword = await bcrypt.hash(password, 10);
+//     const query = 'UPDATE admin SET name = ?, username = ?, password = ?, phonenumber = ?, access = ? WHERE id = ?';
+
+//     connection.query(query, [name, username, hashedPassword, phonenumber, access, userId], (error, results) => {
+//       if (error) {
+//         console.error('Error updating data in admin table:', error);
+//         return res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+//       }
+
+//       if (results.affectedRows === 0) {
+//         return res.status(404).json({ success: false, error: 'User not found' });
+//       }
+//       res.status(200).json({ success: true, message: 'User details updated successfully' });
+//     });
+//   } catch (error) {
+//     console.error('Error hashing password:', error);
+//     res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+//   }
+// }); 
+
 app.post('/api/registeruser/:userId', async (req, res) => {
   const userId = req.params.userId;
-  const { name, username, password, phonenumber, access } = req.body;
+  const { name, username, phonenumber, access } = req.body;
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const query = 'UPDATE admin SET name = ?, username = ?, password = ?, phonenumber = ?, access = ? WHERE id = ?';
+    const query = 'UPDATE admin SET name = ?, username = ?, phonenumber = ?, access = ? WHERE id = ?';
 
-    connection.query(query, [name, username, hashedPassword, phonenumber, access, userId], (error, results) => {
+    connection.query(query, [name, username, phonenumber, access, userId], (error, results) => {
       if (error) {
         console.error('Error updating data in admin table:', error);
         return res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
@@ -789,6 +926,56 @@ app.post('/api/registeruser/:userId', async (req, res) => {
         return res.status(404).json({ success: false, error: 'User not found' });
       }
       res.status(200).json({ success: true, message: 'User details updated successfully' });
+    });
+  } catch (error) {
+    console.error('Error updating user details:', error);
+    res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+  }
+});
+app.post('/api/changepassword/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const { newPassword } = req.body;
+
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const query = 'UPDATE admin SET password = ? WHERE username = ?';
+
+    connection.query(query, [hashedPassword, userId], (error, results) => {
+      if (error) {
+        console.error('Error updating password:', error);
+        return res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+      }
+
+      if (results.affectedRows === 0) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+
+      res.status(200).json({ success: true, message: 'Password updated successfully' });
+    });
+  } catch (error) {
+    console.error('Error hashing password:', error);
+    res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+  }
+});
+app.post('/api/changepassword/:username', async (req, res) => {
+  const { username } = req.params;
+  const { newPassword } = req.body;
+
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const query = 'UPDATE admin SET password = ? WHERE username = ?';
+
+    connection.query(query, [hashedPassword, username], (error, results) => {
+      if (error) {
+        console.error('Error updating password:', error);
+        return res.status(500).json({ success: false, error: 'An unexpected error occurred.' });
+      }
+
+      if (results.affectedRows === 0) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+
+      res.status(200).json({ success: true, message: 'Password updated successfully' });
     });
   } catch (error) {
     console.error('Error hashing password:', error);
@@ -865,9 +1052,9 @@ app.post('/api/insertInvoiceData', (req, res) => {
       res.status(500).json({ error: 'Error inserting invoice data' });
       return;
     }
-      res.status(200).json({ message: 'Invoice data inserted successfully' });
-    });
+    res.status(200).json({ message: 'Invoice data inserted successfully' });
   });
+});
 // Middleware to verify JWT
 function verifyToken(req, res, next) {
   const token = req.headers['authorization'];
@@ -895,9 +1082,19 @@ app.get('/api/getfiledata', (req, res) => {
   });
 });
 app.get('/customer', (req, res) => {
-  const { name } = req.query;
+  const { name, Id } = req.query;
   if (name) {
     connection.query(`SELECT * FROM customer WHERE CustomerName LIKE '%${name}%'`, (error, results) => {
+      if (error) {
+        console.error('Error fetching customers:', error);
+        res.status(500).json({ error: 'An error occurred while fetching customers' });
+      } else {
+        res.json(results);
+      }
+    });
+  }
+  else if (Id) {
+    connection.query(`SELECT * FROM customer WHERE CustomerId LIKE '%${Id}%'`, (error, results) => {
       if (error) {
         console.error('Error fetching customers:', error);
         res.status(500).json({ error: 'An error occurred while fetching customers' });
@@ -941,7 +1138,7 @@ app.get('/bank_customerdetails', (req, res) => {
 
   // Base query to join bankid_customerid and banks tables
   let query = `
-    SELECT bc.*, b.BankName, b.AtmCount
+    SELECT bc.*, b.BankName
     FROM bankid_customerid bc
     JOIN bank b ON bc.BankId = b.BankId
   `;
@@ -979,9 +1176,8 @@ app.get('/bank_customerdetails', (req, res) => {
     }
   });
 });
-
 app.get('/atm', (req, res) => {
-  const { AtmId, CustomerId , BankId } = req.query;
+  const { AtmId, CustomerId, BankId } = req.query;
 
   let query = 'SELECT * FROM atm';
   const queryParams = [];
@@ -1037,7 +1233,6 @@ app.get('/services', (req, res) => {
       queryParams.push(AtmId);
     }
   }
-
   connection.query(query, queryParams, (error, results) => {
     if (error) {
       console.error('Error fetching services:', error);
@@ -1147,10 +1342,25 @@ app.get('/atm_servicesdetails', (req, res) => {
   });
 });
 app.get('/admindetails', (req, res) => {
-  connection.query('SELECT * FROM admin', (error, results) => {
-    if (error) throw error;
-    res.json(results);
-  });
+  const { username } = req.query;
+  if (username) {
+    const query = 'SELECT * FROM admin WHERE username = ?';
+    connection.query(query, [username], (error, results) => {
+      if (error) {
+        console.error('Error fetching admin details:', error);
+        // return res.status(500).json({ error: 'Internal server error' });
+      }
+      return res.json(results);
+      //console.log(results);
+    });
+  }
+  else {
+
+    connection.query('SELECT * FROM admin', (error, results) => {
+      if (error) throw error;
+      res.json(results);
+    });
+  }
 });
 app.get('/userdetails/:userId', (req, res) => {
   const userId = req.params.userId;
@@ -1361,6 +1571,6 @@ app.get('/api/costtoclient/yearly', (req, res) => {
   });
 });
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });

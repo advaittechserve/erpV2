@@ -11,12 +11,36 @@ import Tooltip from "@mui/material/Tooltip";
 import Breadcrumb from './Breadcrumb';
 import breadcrumbData from "../functions/breadcrumbData";
 import Dashboard from "./Dashboard";
+import { getUserRole } from "../functions/userAuth";
+import { jwtDecode } from 'jwt-decode';
 
 const DetailsTable = () => {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [datacsv, setDatacsv] = useState([]);
+  const [userRole, setUserRole] = useState(null);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+     
+        const decoded = jwtDecode(token); // Use jwtDecode correctly
+        const userId = decoded.username;
+        const role = await getUserRole(userId);
+        setUserRole(role[0].access);
+      } else {
+        console.error("No token found in localStorage");
+      }
+    } catch (error) {
+      console.error("Error decoding token or fetching user role:", error);
+    }
+  };
+
+  fetchData();
+}, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,7 +68,7 @@ const DetailsTable = () => {
         const services = servicesResponse.data;
         const employees = employeeResponse.data;
 
-         // Create maps for easy lookup
+        // Create maps for easy lookup
         const customersMap = new Map(customers.map(customer => [customer.CustomerId, customer]));
         const banksMap = new Map(banks.map(bank => [bank.BankId, bank]));
         const atmregionsMap = new Map(atmregions.map(atmregion => [atmregion.AtmId, atmregion]));
@@ -73,7 +97,6 @@ const DetailsTable = () => {
             const service = servicesMap.get(atm.AtmId) || {};
             const employee = employeesMap.get(customer.EmployeeId) || {};
 
-
             return {
               ...customer,
               AtmCount: customerAtms.length,
@@ -85,6 +108,7 @@ const DetailsTable = () => {
             };
           });
         });
+
         setDatacsv(mergedDatacsv);
         const mergedData = customers.map(customer => {
           const bank = banks.find(bank => bank.CustomerId === customer.CustomerId) || {};
@@ -94,16 +118,16 @@ const DetailsTable = () => {
           const employee = employees.find(emp => emp.EmployeeId === customer.EmployeeId) || {};
 
           return {
-              ...customer,
-              ...bank,
-              ...atm,
-              ...atmregion,
-              ...service,
-              ...employee
+            ...customer,
+            ...bank,
+            ...atm,
+            ...atmregion,
+            ...service,
+            ...employee
           };
-      });
+        });
 
-      setData(mergedData);
+        setData(mergedData);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -141,7 +165,7 @@ const DetailsTable = () => {
       name: "View",
       label: "View",
       options: {
-        customBodyRender: (value, tableMeta ,updateValue) => (
+        customBodyRender: (value, tableMeta, updateValue) => (
           <button
             onClick={() => {
               const customerId = tableMeta.rowData[0];
@@ -210,19 +234,18 @@ const DetailsTable = () => {
         },
       },
     });
-
   return (
     <div className="container-form">
       <div className="customer-details">
         <div className="mb-1 w-full">
           <div className="mb-4">
             <Breadcrumb items={breadcrumbData.Customer} />
-            <Dashboard />
+            {userRole === 'SuperAdmin' ? <Dashboard /> : null}
           </div>
           <h2 className="mr-5 text-lg font-medium truncate"></h2>
         </div>
-        <div className="mt-1">
-          <ThemeProvider theme={getMuiTheme()}>
+        <div className=" customer-table mt-1" id='customer-table'>
+          <ThemeProvider theme={getMuiTheme()} >
             <MUIDataTable
               data={data}
               columns={columns}

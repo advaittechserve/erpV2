@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import '../css/customerform.css';
-import GenerateRandomId from '../functions/GenerateRandomId';
 import axios from 'axios';
 import StatusModal from '../Components/StatusModal';
 import { uploadCustomerData } from '../functions/customerDataHandler';
 import { uploadBankData } from '../functions/bankDataHandler';
 import { uploadAtmData } from '../functions/atmDataHandler';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const CustomerForm = () => {
     const [customerName, setCustomerName] = useState('');
@@ -52,6 +53,12 @@ const CustomerForm = () => {
             id: newId, AtmId: '', Address: '', BranchCode: '', SiteId: '', Lho: '', SiteStatus: '', BankId: '', CustomerId: '', SiteType: '',
             RequestedBy: '', FromDate: '', ToDate: '', RequestFile: null, RequestFileName: null, sameAsAbove: false, isDatePickerFromDate: false, isDatePickerToDate: false
         }]);
+    };
+
+    const handleDeleteAtm = (index) => {
+        const updatedAtmDetails = [...atmDetails];
+        updatedAtmDetails.splice(index, 1);
+        setAtmDetails(updatedAtmDetails);
     };
 
     const handleCheckboxChange = (index) => {
@@ -286,6 +293,7 @@ const CustomerForm = () => {
         setValidationError('');
         return true;
     };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
         setShowModal(true);
@@ -297,47 +305,37 @@ const CustomerForm = () => {
             return;
         }
 
-        let customerId = GenerateRandomId(12);
+        let customerId = document.getElementById('CustomerName').value.replace(/\s+/g, '').toLowerCase();
         const bankId = document.getElementById('BankName').value;
         const bankName = document.getElementById('BankName').value;
         const customerSiteStatus = document.getElementById('CustomerSiteStatus').value;
+        const Address = document.getElementById('Address').value;
+        const BranchCode = document.getElementById('BranchCode').value;
+        const SiteId = document.getElementById('SiteId').value;
+        const Lho = document.getElementById('Lho').value;
+        const SiteType = document.getElementById('SiteType').value;
+        const FromDate = document.getElementById('FromDate').value;
+        const ToDate = document.getElementById('ToDate').value;
+        const SiteStatus = document.getElementById('SiteStatus').value;
+        const RequestedBy = document.getElementById('RequestedBy').value;
 
         try {
-            updateStatusMessage('Checking if customer exists...');
-            await delay(500);
-
             const customerData = [{
                 CustomerId: customerId,
                 CustomerName: customerName,
                 CustomerSiteStatus: customerSiteStatus,
-                StartDate: startDate,
-                EndDate: endDate,
             }];
 
             await uploadCustomerData(customerData);
-            updateStatusMessage('Customer data processed successfully');
-            await delay(500);
-
-            updateStatusMessage('Checking if bank exists...');
-            await delay(500);
-
             const bankData = {
                 BankId: bankId,
                 BankName: bankName,
+                CustomerId: customerId
             };
-
             await uploadBankData(bankData);
-            updateStatusMessage('Fetching existing ATM IDs...');
-            await delay(500);
-
-            const existingAtmIdsResponse = await axios.get('http://localhost:5000/atm');
-            const existingAtmIds = existingAtmIdsResponse.data.map((atm) => atm.AtmId);
 
             const updatedAtmDetails = atmDetails.map((atmDetail) => {
                 const { AtmId, RequestFile, ...rest } = atmDetail;
-                if (existingAtmIds.includes(AtmId)) {
-                    return null;
-                }
                 return {
                     ...rest,
                     AtmId,
@@ -347,24 +345,21 @@ const CustomerForm = () => {
                     BankId: bankId,
                     CustomerId: customerId,
                     RequestFileName: RequestFile ? RequestFile.name : null,
+                    Address: Address,
+                    BranchCode: BranchCode,
+                    SiteId: SiteId,
+                    Lho: Lho,
+                    SiteStatus: SiteStatus,
+                    SiteType: SiteType,
+                    FromDate: FromDate,
+                    ToDate: ToDate,
+                    RequestedBy: RequestedBy
                 };
             }).filter((atmDetail) => atmDetail !== null);
 
             if (updatedAtmDetails.length > 0) {
-                updateStatusMessage('Inserting ATM details...');
-                await delay(500);
                 await uploadAtmData(updatedAtmDetails);
-
-                updateStatusMessage('ATM details submitted successfully');
-                await delay(500);
-            } else {
-                updateStatusMessage('No new ATM details to insert.');
-                await delay(500);
             }
-
-            updateStatusMessage('Handling file uploads...');
-            await delay(500);
-
             for (const atmDetail of atmDetails) {
                 if (atmDetail.RequestFile) {
                     const formData = new FormData();
@@ -378,21 +373,16 @@ const CustomerForm = () => {
                     });
 
                     if (fileUploadResponse.status !== 200) {
-                        updateStatusMessage(`Error uploading file for ATM ID: ${atmDetail.AtmId}`);
                         console.error('File upload error:', fileUploadResponse.data);
-                        await delay(500);
+                        toast.error('Customer update failed!');
+
                     } else {
-                        updateStatusMessage(`File uploaded successfully for ATM ID: ${atmDetail.AtmId}`);
-                        await delay(500);
+                        toast.success('Customer updated successfully!');
                     }
                 }
             }
-
-            updateStatusMessage('Successfully uploaded data!');
-            await delay(500);
         } catch (error) {
             console.error('Error in handleSubmit:', error);
-            updateStatusMessage('An error occurred during submission.');
         } finally {
             setIsUploading(false);
         }
@@ -580,7 +570,7 @@ const CustomerForm = () => {
                             <option value="Inactive">Inactive</option>
                         </select>
                     </div>
-                    <div>
+                    {/* <div>
                         {isDatePickerStartDate ? (
                             <input
                                 type="date"
@@ -603,8 +593,8 @@ const CustomerForm = () => {
                                 required
                             />
                         )}
-                    </div>
-                    <div>
+                    </div> */}
+                    {/* <div>
                         {isDatePickerEndDate ? (
                             <input
                                 type="date"
@@ -627,11 +617,10 @@ const CustomerForm = () => {
                                 required
                             />
                         )}
-                    </div>
+                    </div> */}
 
                 </div>
                 <p className="customer-details-heading">Region Details</p>
-
                 <div className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
                     <div>
                         <select id="countries" className="dropdown" onChange={(e) => fetchStates(e.target.value)} required>
@@ -690,16 +679,23 @@ const CustomerForm = () => {
 
                     {atmDetails.map((atm, index) => (
                         <><hr></hr>
+                            {index !== 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', cursor: 'pointer', color: '#ff0000', fontSize: '1.5rem' }} onClick={() => handleDeleteAtm(index)}>
+                                    ✖  {/* Cross (×) icon */}
+                                </div>
+                            )}
+
                             <div key={atm.id} className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
 
                                 <div>
                                     <input
                                         type="text"
                                         name="AtmId"
+                                        id="AtmId"
                                         value={atm.AtmId}
                                         onChange={(event) => handleAtmIdChange(index, event)}
                                         className="dropdown"
-                                        placeholder="Atm Id"
+                                        placeholder="Atm ID"
                                         required
                                     />
                                     <ul className='ul-suggestion'>
@@ -714,6 +710,7 @@ const CustomerForm = () => {
                                     <input
                                         type="text"
                                         name="Address"
+                                        id="Address"
                                         value={atm.Address}
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
@@ -725,38 +722,45 @@ const CustomerForm = () => {
                                     <input
                                         type="text"
                                         name="BranchCode"
+                                        id="BranchCode"
                                         value={atm.BranchCode}
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
                                         placeholder="Branch Code"
-                                        required
+                                    //required
                                     />
                                 </div>
                                 <div>
                                     <input
                                         type="text"
                                         name="SiteId"
+                                        id="SiteId"
+
                                         value={atm.SiteId}
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
-                                        placeholder="Site Id"
-                                        required
+                                        placeholder="Site ID"
+                                    //required
                                     />
                                 </div>
                                 <div>
                                     <input
                                         type="text"
                                         name="Lho"
+                                        id="Lho"
+
                                         value={atm.Lho}
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
                                         placeholder="LHO"
-                                        required
+                                    //required
                                     />
                                 </div>
                                 <div>
                                     <select
                                         name="SiteStatus"
+                                        id="SiteStatus"
+
                                         value={atm.SiteStatus}
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
@@ -769,13 +773,15 @@ const CustomerForm = () => {
                                 <div>
                                     <select
                                         name="SiteType"
+                                        id="SiteType"
+
                                         value={atm.SiteType}
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
                                     >
                                         <option value="" disabled>Site Type</option>
-                                        <option value="Onsite">Onsite</option>
-                                        <option value="Offsite">Offsite</option>
+                                        <option value="Onsite">Back Office</option>
+                                        <option value="Offsite">Field</option>
                                     </select>
                                 </div>
                                 <div>
@@ -783,6 +789,8 @@ const CustomerForm = () => {
                                         <input
                                             type="date"
                                             name="FromDate"
+                                            id="FromDate"
+
                                             value={atm.FromDate}
                                             onChange={(event) => handleInputChange(index, event)}
                                             className="dropdown"
@@ -794,6 +802,8 @@ const CustomerForm = () => {
                                         <input
                                             type="text"
                                             name="FromDate"
+                                            id="FromDate"
+
                                             value={atm.FromDate}
                                             onChange={(event) => handleInputChange(index, event)}
                                             className="dropdown"
@@ -809,24 +819,28 @@ const CustomerForm = () => {
                                         <input
                                             type="date"
                                             name="ToDate"
+                                            id="ToDate"
+
                                             value={atm.ToDate}
                                             onChange={(event) => handleInputChange(index, event)}
                                             className="dropdown"
                                             onFocus={() => handleFocusToDate(index)}
                                             onBlur={() => handleBlurToDate(index)}
-                                            required
+                                        //required
                                         />
                                     ) : (
                                         <input
                                             type="text"
                                             name="ToDate"
+                                            id="ToDate"
+
                                             value={atm.ToDate}
                                             onChange={(event) => handleInputChange(index, event)}
                                             className="dropdown"
                                             placeholder="To Date"
                                             onFocus={() => handleFocusToDate(index)}
                                             onBlur={() => handleBlurToDate(index)}
-                                            required
+                                        //required
                                         />
                                     )}
                                 </div>
@@ -834,6 +848,8 @@ const CustomerForm = () => {
                                     <input
                                         type="text"
                                         name="RequestedBy"
+                                        id="RequestedBy"
+
                                         onChange={(event) => handleInputChange(index, event)}
                                         className="dropdown"
                                         placeholder="Requested By"
@@ -851,6 +867,7 @@ const CustomerForm = () => {
                                     />
                                 </div>
                                 {index !== 0 && (
+
                                     <div>
                                         <label>
                                             <input
@@ -860,18 +877,24 @@ const CustomerForm = () => {
                                             />
                                             Details same as first atm
                                         </label>
+
                                     </div>
+
                                 )}
+
                             </div>
+
                         </>
+
                     ))}
                     <button className="add-btn" onClick={handleAddAtm}>Add ATM</button>
+
                 </div>
                 {validationError && <div className="error-message">{validationError}</div>}
 
                 <button type="submit" className="submit-btn">Submit</button>
             </form>
-            <StatusModal show={showModal} handleClose={handleCloseModal} message={statusMessage} isUploading={isUploading} />
+            <ToastContainer />
         </div>
 
     );

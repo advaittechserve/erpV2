@@ -181,7 +181,7 @@ const AtmForm = () => {
             <div className="customer-details">
                 <BackButton />
                 <form className="" onSubmit={handleSubmit}>
-                    <p className="customer-details-heading">Edit Atm Details</p>
+                    <p className="customer-details-heading">Atm Details</p>
                     <div className="grid gap-4 mb-6 md:grid-cols-3 mt-4">
                         <div className="relative">
                             <label htmlFor="floating_outlined" className="label_form">Atm ID</label>
@@ -321,7 +321,7 @@ const AtmForm = () => {
                                         id={`serviceId_${index}`}
                                         value={service.ServiceId}
                                         className="dropdown"
-                                        placeholder="Service Id (autofill)"
+                                        placeholder="Service ID(autofill)"
                                         disabled={!isEditMode}
                                     />
                                 </div>

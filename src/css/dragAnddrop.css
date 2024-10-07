@@ -88,8 +88,22 @@
 
 }
 
+.download-btn{
+  background: #000; /* Dark grey (#444) to black (#000) */
+  color: #fff;
+  border: none;
+  border-radius: 30px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-image 0.3s ease;
+  margin-top: 15px;
+}
 
-
+.download-btn:hover{
+  background: #12BBB4; /* Dark grey (#444) to black (#000) */
+  color: #fff;
+}
 
 .upload-icon{
   display: flex;
