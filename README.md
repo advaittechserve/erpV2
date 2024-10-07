@@ -23,18 +23,18 @@ This template provides a minimal setup to get React working in Vite with HMR and
 
 3. **Prerequisites**:
 
-   vs code
-   Xampp for PHPMyAdmin
-   MySQL
-   node js
+   vs code,
+   Xampp for PHPMyAdmin,
+   MySQL,
+   node js,
 
 4. **Technologies used**:
-   React for frontend
-   node js, express for backend
-   Mysql for database
-   Vite
-   GitHub
-   JWT
+   React for frontend,
+   node js, express for backend,
+   Mysql for database,
+   Vite,
+   GitHub,
+   JWT,
    Socket.io
    
    
